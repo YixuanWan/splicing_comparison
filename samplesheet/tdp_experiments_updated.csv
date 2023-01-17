@@ -1,0 +1,11 @@
+comparison_majiq,n_cryptic_junctions,name,paper,notes,controls,knockdowns,read.length,cell.type,average.library.size,padj,log2fold_change_tdp
+controlbrownshsy5y-tdp43kdbrownshsy5y,992,brown.sh-sy-5y,https://doi.org/10.1038/s41586-022-04436-3,,3,3,149,SH-SY5Y,137526902,6.53E-11,-1.296299535
+nodox-dox0075,839,dox_075|no_dox,unpublished,strongest KD in SH curve,3,3,100,SH-SY5Y,118933742,0,-3.941817827
+controlhumphreycorticalneuron-tdp43kdhumphreycorticalneuron,811,humphrey_i3cortical,unpublished,,6,6,151,i3 cortical,95981221,1.95E-110,-3.275267876
+controlbrownskndz-tdp43kdbrownskndz,743,brown.sk-n-dz,https://doi.org/10.1038/s41586-022-04436-3,,3,4,149,SK-N-DZ,136053813,5.83E-128,-2.588178312
+controlseddighicorticalneuron-tdp43kdseddighicorticalneuron,680,seddighi.ipscCortical_neuron,unpublished - TBD - prolly on biorxiv start of dec,,12,6,145,i3 cortical,206574027,0,-2.03873657
+controlbrowncorticalneuron-tdp43kdbrowncorticalneuron,619,brown.ipscCortical_neuron,https://doi.org/10.1038/s41586-022-04436-3,,4,4,75,i3 cortical,119476285,1.07E-111,-1.639857798
+control-tdp43kd1,586,DZcurve_1|DZcurve_control,unpublished,strongest KD in SK curve,3,3,150,SK-N-DZ,149581417,0,-3.96024903
+controlappocherskndz-tdp43kdappocherskndz,379,appocher.sk-n-dz,https://doi.org/10.1093/nar/gkx477,,3,3,100,SK-N-DZ,22317199,6.07E-13,-1.988566414
+controlmelamedshsy5y-tdp43kdmelamedshsy5y,195,melamed.sh-sy-5y,10.1038/s41593-018-0293-z,,3,3,50,SH-SY5Y,60037818,1.13E-77,-1.931236822
+controlklimmotorneuron-tdp43kdklimmotorneuron,72,klim.ipscMotor_neuron,10.1038/s41593-018-0300-4,,12,6,75,iPSC MN,49420528,3.10E-48,-1.340180502

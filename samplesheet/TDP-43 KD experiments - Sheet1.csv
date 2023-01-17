@@ -1,0 +1,12 @@
+name,paper,notes,controls,knockdowns,read length,average depth(million reads),cell type,log2FoldChange TARDBP,n cryptic junctions MAJIQ,n cryptic genes MAJIQ,average library size
+brown.ipscCortical_neuron,https://doi.org/10.1038/s41586-022-04436-3,,4,4,75,54.5,i3 cortical,,,,119476285
+seddighi.ipscCortical_neuron,unpublished - TBD - prolly on biorxiv start of dec,,12,6,145,97.4,i3 cortical,,,,206574027
+humphrey_i3cortical,unpublished,,,,,,i3 cortical,NA,,,95981221
+klim.ipscMotor_neuron,10.1038/s41593-018-0300-4 ,,12,6,75,23.2,iPSC MN,,,,49420528
+brown.sh-sy-5y,https://doi.org/10.1038/s41586-022-04436-3,,3,3,149,64.2,SH-SY5Y,,,,137526902
+Control_TDP43KD|Control_Control,unpublished,chx experiment...,4,4,95,44.49,SH-SY5Y,,,,
+dox_075|no_dox,unpublished,strongest KD in SH curve,,,,,SH-SY5Y,,,,118933742
+melamed.sh-sy-5y,10.1038/s41593-018-0293-z,,,,,,SH-SY5Y,,,,60037818
+brown.sk-n-dz,https://doi.org/10.1038/s41586-022-04436-3,,3,4,149,64.4,SK-N-DZ,,,,136053813
+appocher.sk-n-dz,https://doi.org/10.1093/nar/gkx477,,,,,,SK-N-DZ,,,,22317199
+DZcurve_1|DZcurve_control,unpublished,strongest KD in SK curve,3,3,,,SK-N-DZ,,,,149581417
