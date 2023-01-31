@@ -157,7 +157,7 @@ dz_long %>%
   xlab("Gene name") +
   theme_minimal()
   
-#=========dz vs sy5y: overall ========
+#=========dz vs sy5y: overall ==========
 rbpComp = left_join(avg_rbp_expression, avg_rbp_expression_d, by = "gene_name", suffix = c('.sy5y', '.dz')) %>% 
   as.data.frame() 
 rbpComp %>% 
