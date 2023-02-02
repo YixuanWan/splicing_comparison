@@ -219,6 +219,5 @@ p_kd = p +
 
 gridExtra::grid.arrange(p0, p_con, p_kd, ncol = 3)
 
-#=================differential expression plots ===============
-sy5y_deseq <- data.table::fread("/Users/Ewann/splicing_comparison/deseq2_tables_firstpanel/dox_075_no_dox.DESEQ2_results.csv")
+
 
