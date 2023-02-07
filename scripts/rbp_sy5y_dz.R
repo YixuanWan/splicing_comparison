@@ -6,12 +6,18 @@ library(ggrepel)
 library(tximport)
 library(ggpubr)
 
+my_clean_reader <- function(file){
+  df = data.table::as.data.table(janitor::clean_names(data.table::fread(file)))
+  return(df)
+}
+
+
 cluster_mount_point = "/Users/Ewann/cluster"
 tx2gene = file.path(cluster_mount_point,"vyplab_reference_genomes/annotation/human/GRCh38/gencode.v40.tx2gene.csv")
 tx2gene <- data.table::fread(tx2gene,header=FALSE)  
 colnames(tx2gene) = c("TXNAME", "GENEID")
 
-human_rbp = data.table::fread("/Users/Ewann/splicing_comparison/human_rbps.csv",header=TRUE)
+human_rbp = data.table::fread("/Users/Ewann/splicing_comparison/data/human_rbps.csv",header=TRUE)
 
 
 transcript_counts <- function(salmonpath,
@@ -221,3 +227,38 @@ gridExtra::grid.arrange(p0, p_con, p_kd, ncol = 3)
 
 
 
+
+# =================COMPARING RBP DE IN SY5Y vs DZ========================
+
+# import files
+sy_deseq = "/Users/Ewann/splicing_comparison/data/deseq2/dox_075|no_dox.DESEQ2_results.csv"
+dz_deseq = "/Users/Ewann/splicing_comparison/data/deseq2/DZcurve_1|DZcurve_control.DESEQ2_results.csv"
+
+# clean the files
+sy_deseq = my_clean_reader(sy_deseq)
+dz_deseq = my_clean_reader(dz_deseq)
+
+# identify RBPs
+
+sy_rbp = sy_deseq |> 
+  left_join(human_rbp, by = "gene_name") |> 
+  filter(!is.na(ensmbleID)) |> 
+  filter(!is.na(log2fold_change)) |> 
+  # filter(padj < 0.1) |> 
+  select(gene_name, log2fold_change, padj, base_mean)
+
+
+dz_rbp = dz_deseq |> 
+  left_join(human_rbp, by = "gene_name") |> 
+  filter(!is.na(ensmbleID)) |> 
+  filter(!is.na(log2fold_change)) |> 
+  # filter(padj < 0.1) |> 
+  select(gene_name, log2fold_change, padj, base_mean)
+
+
+both_rbp = full_join(sy_rbp, dz_rbp, by = 'gene_name')
+sy_unique = both_rbp |> 
+  filter(is.na(log2fold_change.y)) |> 
+  select(gene_name)
+
+# to plot the difference

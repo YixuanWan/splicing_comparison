@@ -70,7 +70,7 @@ rbp_table_long = tibble(experiment, gene_name, fc, padj) |>
 
 # perform correlation by rbp
 rbp_table = rbp_table_long |> 
-  filter(padj < 0.1) |> 
+  # filter(padj < 0.1) |>
   group_by(gene_name) |> 
   nest() |> 
   mutate(correlation_result = purrr::map(data,safe_func)) |>  
@@ -79,10 +79,12 @@ rbp_table = rbp_table_long |>
 #write out the results
 rbp_corr_significant = rbp_table |> 
   select(gene_name, p_value, estimate) |>
-  filter(p_value < 0.05 | gene_name == "TARDBP") |> 
-  unique()
+  filter(!is.na(p_value)) |> 
+  # filter(p_value < 0.05 | gene_name == "TARDBP") |> 
+  unique() |> 
+  arrange(p_value)
 
-fwrite(rbp_corr_significant, "/Users/Ewann/splicing_comparison/data/rbp_deseq/corr_rbp_cryptic_significant.csv")
+fwrite(rbp_corr_significant, "/Users/Ewann/splicing_comparison/data/rbp_deseq/corr_rbp_cryptic.csv")
 
 # make plots for HNRNPF, SRSF3, SYNCRIP
 corr_plot <- function(RBP) {
@@ -98,8 +100,9 @@ corr_plot <- function(RBP) {
     geom_smooth(data = RBP_table[RBP_table$significance == "Yes",], method = 'lm', colour = "orange", linewidth = 0.7, alpha = 0.5) +
     geom_point() +
     scale_colour_manual(values = c("grey", "darkorange")) +
-    labs(colour = "p<0.05?") +
+    labs(colour = "padj<0.1?") +
     xlab(paste0("log2FoldChange/", RBP)) +
+    ylab("N cryptic junctions") +
     theme_minimal()
 }
 
@@ -107,4 +110,29 @@ corr_plot("HNRNPF")
 corr_plot("SRSF3")
 corr_plot("SYNCRIP")
 
+corr_full <- function (RBP) {
+rbp_table |> 
+    filter(gene_name == RBP) |> 
+    select(gene_name, experiment, fc, n_cryptic_junctions, p_value) |>  
+    filter(!is.na(fc)) |> 
+    ggplot(aes(x = fc, y = n_cryptic_junctions)) +
+    geom_smooth(method = 'lm') +
+    geom_point() +
+    xlab(paste0("log2FoldChange/", RBP)) +
+    ylab("N cryptic junctions") +
+    theme_minimal()
+}
 
+
+# Plotting for all RBPs
+RBP = human_rbp$gene_name
+pdf("/Users/Ewann/splicing_comparison/data/rbp_deseq/corr_rbp_cryptic.pdf")
+for (r in RBP){
+  plot = corr_full(r)
+  print(plot)
+}
+dev.off()
+
+
+
+# check the baseMean of HNRNPCL2

@@ -90,6 +90,8 @@ metatable = left_join(experiment_table, elavl3, by = c('name' = 'experiment'))
 # write the results to a csv file
 fwrite(metatable, "/Users/Ewann/splicing_comparison/data/rbp_deseq/elavl3_tdp_experiment_table.csv")
 
+metatable = fread("/Users/Ewann/splicing_comparison/data/rbp_deseq/elavl3_tdp_experiment_table.csv", header = T)
+
 
 # plot the relationship
 # elavl3 & cyptic junctions
@@ -129,7 +131,7 @@ metatable |>
 
 # read length $ cryptic junctions
 metatable |> 
-  ggplot(aes(x = average.library.size, y = n_cryptic_junctions, label = name)) +
+  ggplot(aes(x = read.length, y = n_cryptic_junctions, label = name)) +
   geom_point() +
   geom_text_repel(box.padding = 0.2, max.overlaps = Inf, size = 3) +
   theme_minimal() 
