@@ -38,4 +38,8 @@ meta_bed = metatable |>
 rtracklayer::export(meta_bed, "/Users/Ewann/splicing_comparison/data/tdp_bed/TARDBP_all.bed")
 
 
+# to merge overlapping ranges
+all_bed = import.bed("/Users/Ewann/splicing_comparison/data/tdp_bed/TARDBP_all.bed")
+reduced = reduce(all_bed)
+rtracklayer::export(reduced, "/Users/Ewann/splicing_comparison/data/tdp_bed/TARDBP_reduced.bed")
 

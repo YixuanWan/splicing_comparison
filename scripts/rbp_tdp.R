@@ -90,7 +90,7 @@ metatable = left_join(experiment_table, elavl3, by = c('name' = 'experiment'))
 # write the results to a csv file
 fwrite(metatable, "/Users/Ewann/splicing_comparison/data/rbp_deseq/elavl3_tdp_experiment_table.csv")
 
-metatable = fread("/Users/Ewann/splicing_comparison/data/rbp_deseq/elavl3_tdp_experiment_table.csv", header = T)
+metatable = fread("/Users/Ewann/splicing_comparison/samplesheet/elavl3_tdp_experiment_table.csv", header = T)
 
 
 # plot the relationship
@@ -110,7 +110,9 @@ metatable |>
   theme_minimal() 
 
 # elavl3 & tdp43
-cor.test(metatable$fc_elavl3, metatable$log2fold_change_tdp, method = "pearson")
+tst = cor.test(metatable$fc_elavl3, metatable$log2fold_change_tdp, method = "pearson") |> broom::tidy()
+estim = tst |> pull(estimate)
+pval = tst |> pull(p.value)
 
 metatable |> 
   filter(!is.na(fc_elavl3)) |> 
@@ -119,7 +121,7 @@ metatable |>
   geom_text_repel(box.padding = 0.2, max.overlaps = Inf, size = 3) +
   theme_minimal() +
   labs(
-    subtitle = "Pearson, r = 0.8589735, p = 0.001455"
+    subtitle = glue::glue("Pearson, r = {estim}, p = {pval}")
   )
 
 # library size & cryptic junctions

@@ -23,11 +23,11 @@ human_rbp = data.table::fread("/Users/Ewann/splicing_comparison/data/human_rbps.
 transcript_counts <- function(salmonpath,
                               metadatapath,
                               baseline = "control",
-                              contrast = "contrast",
+                              contrast = "tdp43KD",
                               controls_name = "control",
-                              contrast_name = "contrast",
+                              contrast_name = "humphreyi3",
                               countsFromAbundance = "lengthScaledTPM",
-                              celltype) 
+                              celltype = "i3")
   {
   salmon_quant_directory = file.path(cluster_mount_point, salmonpath)
   metadata_filepath = file.path(cluster_mount_point, metadatapath)
@@ -35,13 +35,13 @@ transcript_counts <- function(salmonpath,
   metadata_orig = read.csv(metadata_filepath,header=TRUE)
   column_name = "group"
   
-  outputdir = "/Users/Ewann/splicing_comparison/rbp"
+  outputdir = "/Users/Ewann/splicing_comparison/results/gene_counts"
   exp = paste0(contrast_name,"_",controls_name)
   output_path = paste0(outputdir,"/",exp)
   
   metadata = metadata_orig %>%  
     filter(is.na(exclude_sample_downstream_analysis)) %>% 
-    dplyr::select(sample_name, unit, !!(column_name)) %>%
+    dplyr::select(sample_name, !!(column_name)) %>%
     mutate(comparison_condition = case_when(!!as.symbol(column_name) == baseline ~ 'baseline',
                                             !!as.symbol(column_name) == contrast ~ 'contrast',
                                             TRUE ~ NA_character_)) %>% 
@@ -50,9 +50,9 @@ transcript_counts <- function(salmonpath,
   if(celltype == 'sy5y'){
     files = unique(file.path(salmon_quant_directory,paste0(metadata$unit,"_", metadata$sample_name),"quant.sf"))
   } else{
-    files = unique(file.path(salmon_quant_directory,metadata$sample_name,"quant.sf")) 
+    files = unique(file.path(salmon_quant_directory,metadata$sample_name,"quant.sf"))
   }
-  
+
   names(files) = unique(metadata$sample_name)
   
   if(all(file.exists(files)) == FALSE) {
@@ -99,6 +99,18 @@ transcript_counts("first_weeks/TDP_CHX_CLONES_GLIA/salmon",
                   contrast_name = "SY5Yhighest",
                   countsFromAbundance = "lengthScaledTPM",
                   "sy5y") 
+
+#================2.5 Generating transcript counts for i3 =======================
+# humphrey i3 cortical
+transcript_counts("TDP43_RNA/i3_Cortical_long_reads/new_data_nanopore_plus_sr/salmon",
+                  "first_weeks/splicing_comparisons/symbams/humphrey_i3cortical/majiq_sample_sheet.csv",
+                  baseline = "control",
+                  contrast = "tdp43KD",
+                  controls_name = "control",
+                  contrast_name = "humphreyi3",
+                  countsFromAbundance = "lengthScaledTPM",
+                  "i3") 
+
 
 #================3. Identify and compare RBP expression in SY5Y and DZ =======================
 
@@ -261,4 +273,3 @@ sy_unique = both_rbp |>
   filter(is.na(log2fold_change.y)) |> 
   select(gene_name)
 
-# to plot the difference
