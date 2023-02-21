@@ -105,9 +105,14 @@ metatable |>
 # tdp43 & cryptic junctions
 metatable |> 
   ggplot(aes(x = log2fold_change_tdp, y = n_cryptic_junctions, label = name)) +
-  geom_point() +
+  geom_point(aes(colour = cell.type)) +
   geom_text_repel(box.padding = 0.2, max.overlaps = Inf, size = 3) +
-  theme_minimal() 
+  theme_minimal() +
+  labs(
+    x = "log2FC/TARDBP",
+    y = "N cryptic junctions",
+    colour = "Cell Type"
+  )
 
 # elavl3 & tdp43
 tst = cor.test(metatable$fc_elavl3, metatable$log2fold_change_tdp, method = "pearson") |> broom::tidy()
@@ -127,18 +132,38 @@ metatable |>
 # library size & cryptic junctions
 metatable |> 
   ggplot(aes(x = average.library.size, y = n_cryptic_junctions, label = name)) +
-  geom_point() +
+  geom_point(aes(colour = cell.type)) +
   geom_text_repel(box.padding = 0.2, max.overlaps = Inf, size = 3) +
-  theme_minimal() 
+  theme_minimal()  +
+  labs(
+    x = "Library Sizes",
+    y = "N cryptic junctions",
+    colour = "Cell Type"
+  )
 
 # read length $ cryptic junctions
 metatable |> 
   ggplot(aes(x = read.length, y = n_cryptic_junctions, label = name)) +
-  geom_point() +
+  geom_point(aes(colour = cell.type)) +
   geom_text_repel(box.padding = 0.2, max.overlaps = Inf, size = 3) +
-  theme_minimal() 
+  theme_minimal()   +
+  labs(
+    x = "Read Length",
+    y = "N cryptic junctions",
+    colour = "Cell Type"
+  )
 
-
+# cell type & cryptic junctions
+metatable |> 
+  ggplot(aes(x = cell.type, y = n_cryptic_junctions)) +
+  geom_boxplot(colour = "darkgrey") +
+  geom_jitter(aes(colour = cell.type)) +
+  theme_minimal()   +
+  labs(
+    x = "Cell type",
+    y = "N cryptic junctions",
+    colour = "Cell Type"
+  )
 
 
 

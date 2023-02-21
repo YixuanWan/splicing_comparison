@@ -69,9 +69,9 @@ transcript_counts <- function(salmonpath,
   txi.sum <- summarizeToGene(txi.tx, tx2gene, countsFromAbundance = countsFromAbundance)
   genecount = txi.sum$abundance %>% 
     as.data.frame() %>% 
-    tibble::rownames_to_column('gene') %>% 
-    mutate(ensmbleID = gsub("\\..*", "", gene)) %>% 
-    left_join(human_rbp) %>% 
+    tibble::rownames_to_column('gene') |> 
+    mutate(ensmbleID = gsub("\\..*", "", gene)) %>%
+    left_join(human_rbp) %>%
     filter(!is.na(gene_name))
   
   
@@ -111,6 +111,25 @@ transcript_counts("TDP43_RNA/i3_Cortical_long_reads/new_data_nanopore_plus_sr/sa
                   countsFromAbundance = "lengthScaledTPM",
                   "i3") 
 
+# sedigghi
+transcript_counts("first_weeks/WARD_BAMS_NEW/salmon",
+                  "first_weeks/WARD_BAMS_NEW/ward_i3_newer_longer_bams_sample_sheet.csv",
+                  baseline = "CTL",
+                  contrast = "TDP43_KD",
+                  controls_name = "control",
+                  contrast_name = "sedigghii3",
+                  countsFromAbundance = "lengthScaledTPM",
+                  "i3") 
+
+# browni3
+transcript_counts("alb_projects/data/ward_bams/salmon",
+                  "alb_projects/data/ward_bams/ward_bams.csv",
+                  baseline = "control",
+                  contrast = "tdpKD",
+                  controls_name = "control",
+                  contrast_name = "browni3",
+                  countsFromAbundance = "lengthScaledTPM",
+                  "i3") 
 
 #================3. Identify and compare RBP expression in SY5Y and DZ =======================
 
