@@ -35,7 +35,7 @@ transcript_counts <- function(salmonpath,
   metadata_orig = read.csv(metadata_filepath,header=TRUE)
   column_name = "group"
   
-  outputdir = "/Users/Ewann/splicing_comparison/results/gene_counts"
+  outputdir = "/Users/Ewann/splicing_comparison/results/gene_counts_all"
   exp = paste0(contrast_name,"_",controls_name)
   output_path = paste0(outputdir,"/",exp)
   
@@ -70,9 +70,10 @@ transcript_counts <- function(salmonpath,
   genecount = txi.sum$abundance %>% 
     as.data.frame() %>% 
     tibble::rownames_to_column('gene') |> 
-    mutate(ensmbleID = gsub("\\..*", "", gene)) %>%
-    left_join(human_rbp) %>%
-    filter(!is.na(gene_name))
+    mutate(ensmbleID = gsub("\\..*", "", gene)) |> 
+    select(-gene)
+    # left_join(human_rbp) %>%
+    # filter(!is.na(gene_name))
   
   
   fwrite(genecount,paste0(output_path,".gene_counts.csv"))
@@ -80,7 +81,6 @@ transcript_counts <- function(salmonpath,
 
 
 #=========1. Generating transcript counts for DZ ========================== 
-
 transcript_counts("first_weeks/TDP_curves_UPF1_GLIA/DZ_curves/salmon_quant",
                   "first_weeks/TDP_curves_UPF1_GLIA/DZ_curves/sample_sheet_dz_curves.csv",
                   baseline = "DZ_curves_0",

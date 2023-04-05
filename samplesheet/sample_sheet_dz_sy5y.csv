@@ -1,0 +1,13 @@
+﻿sample_name,unit,fast1,fast2,exclude_sample_downstream_analysis,group
+dox-conc_DOX_0.075_1,placeholder,/SAN/vyplab/first_weeks/TDP_CHX_CLONES_GLIA/fastq/15_0_075-1_S32_R1_001.fastq.gz,/SAN/vyplab/first_weeks/TDP_CHX_CLONES_GLIA/fastq/15_0_075-1_S32_R2_001.fastq.gz,,sy5y_tdpkd
+dox-conc_DOX_0.075_2,placeholder,/SAN/vyplab/first_weeks/TDP_CHX_CLONES_GLIA/fastq/15_0_075-2_S33_R1_001.fastq.gz,/SAN/vyplab/first_weeks/TDP_CHX_CLONES_GLIA/fastq/15_0_075-2_S33_R2_001.fastq.gz,,sy5y_tdpkd
+dox-conc_DOX_0.075_3,placeholder,/SAN/vyplab/first_weeks/TDP_CHX_CLONES_GLIA/fastq/15_0_075-3_S34_R1_001.fastq.gz,/SAN/vyplab/first_weeks/TDP_CHX_CLONES_GLIA/fastq/15_0_075-3_S34_R2_001.fastq.gz,,sy5y_tdpkd
+dox-conc_NT_0_1,placeholder,/SAN/vyplab/first_weeks/TDP_CHX_CLONES_GLIA/fastq/15_NT-1_S17_R1_001.fastq.gz,/SAN/vyplab/first_weeks/TDP_CHX_CLONES_GLIA/fastq/15_NT-1_S17_R2_001.fastq.gz,,sy5y_ctl
+dox-conc_NT_0_2,placeholder,/SAN/vyplab/first_weeks/TDP_CHX_CLONES_GLIA/fastq/15_NT-2_S18_R1_001.fastq.gz,/SAN/vyplab/first_weeks/TDP_CHX_CLONES_GLIA/fastq/15_NT-2_S18_R2_001.fastq.gz,,sy5y_ctl
+dox-conc_NT_0_3,placeholder,/SAN/vyplab/first_weeks/TDP_CHX_CLONES_GLIA/fastq/15_NT-3_S19_R1_001.fastq.gz,/SAN/vyplab/first_weeks/TDP_CHX_CLONES_GLIA/fastq/15_NT-3_S19_R2_001.fastq.gz,,sy5y_ctl
+DZ_curves_0_1,placeholder,/SAN/vyplab/first_weeks/TDP_curves_UPF1_GLIA/DZ_curves/fastq/DZ_curves_NT_1_S1_R1_001.fastq.gz,/SAN/vyplab/first_weeks/TDP_curves_UPF1_GLIA/DZ_curves/fastq/DZ_curves_NT_1_S1_R2_001.fastq.gz,,dz_ctl
+DZ_curves_0_2,placeholder,/SAN/vyplab/first_weeks/TDP_curves_UPF1_GLIA/DZ_curves/fastq/DZ_curves_NT_2_S2_R1_001.fastq.gz,/SAN/vyplab/first_weeks/TDP_curves_UPF1_GLIA/DZ_curves/fastq/DZ_curves_NT_2_S2_R2_001.fastq.gz,,dz_ctl
+DZ_curves_0_3,placeholder,/SAN/vyplab/first_weeks/TDP_curves_UPF1_GLIA/DZ_curves/fastq/DZ_curves_NT_3_S3_R1_001.fastq.gz,/SAN/vyplab/first_weeks/TDP_curves_UPF1_GLIA/DZ_curves/fastq/DZ_curves_NT_3_S3_R2_001.fastq.gz,,dz_ctl
+DZ_curves_1_1,placeholder,/SAN/vyplab/first_weeks/TDP_curves_UPF1_GLIA/DZ_curves/fastq/DZ_curves_1_1_S22_R1_001.fastq.gz,/SAN/vyplab/first_weeks/TDP_curves_UPF1_GLIA/DZ_curves/fastq/DZ_curves_1_1_S22_R2_001.fastq.gz,,dz_tdpkd
+DZ_curves_1_2,placeholder,/SAN/vyplab/first_weeks/TDP_curves_UPF1_GLIA/DZ_curves/fastq/DZ_curves_1_2_S23_R1_001.fastq.gz,/SAN/vyplab/first_weeks/TDP_curves_UPF1_GLIA/DZ_curves/fastq/DZ_curves_1_2_S23_R2_001.fastq.gz,,dz_tdpkd
+DZ_curves_1_3,placeholder,/SAN/vyplab/first_weeks/TDP_curves_UPF1_GLIA/DZ_curves/fastq/DZ_curves_1_3_S24_R1_001.fastq.gz,/SAN/vyplab/first_weeks/TDP_curves_UPF1_GLIA/DZ_curves/fastq/DZ_curves_1_3_S24_R2_001.fastq.gz,,dz_tdpkd

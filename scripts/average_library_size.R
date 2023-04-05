@@ -10,7 +10,7 @@ lib_mean <- function(file){
   return(result)
 }
 
-experiment_table <- read.csv("TDP-43 KD experiments - Sheet1.csv")
+experiment_table <- read.csv("/Users/Ewann/splicing_comparison/samplesheet/tdp_experiments_updated - tdp_experiments_updated.csv")
 
 #REPLACE WITH YOUR DOWNLOAD FILE
 file_path = file.path(here::here(),'library_size')

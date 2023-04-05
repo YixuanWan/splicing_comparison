@@ -63,6 +63,11 @@ genecounts_tdp = metatable |> select(all_of(tdpkd_id))
 
 
 # Named vector of size factors for each sample in matrix
+# size factors are estimated by:
+  # Each column is divided by the geometric means of the rows.
+  # The median (or, if requested, another location estimator) of these ratios 
+  # (skipping the genes with a geometric mean of zero) is used as the size factor 
+  # for this column.
 sfs <- DESeq2::estimateSizeFactorsForMatrix(genecounts)
 
 # same thing for tdp
@@ -117,6 +122,7 @@ norm_counts_celltype |>
   ggplot(aes(x = celltype, y = value)) +
   geom_boxplot(colour = "darkgrey") +
   geom_jitter(aes(colour = celltype)) +
+  ggpubr::stat_compare_means() +
   theme_minimal() +
   labs(
     x = "Celltype",
@@ -124,6 +130,7 @@ norm_counts_celltype |>
     colour = "Celltype",
     title = "Baseline"
   ) 
+
 
 # same for tdp kd
 norm_counts_celltype_tdp |>
