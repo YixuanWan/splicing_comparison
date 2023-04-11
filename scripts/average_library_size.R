@@ -10,10 +10,10 @@ lib_mean <- function(file){
   return(result)
 }
 
-experiment_table <- read.csv("/Users/Ewann/splicing_comparison/samplesheet/tdp_experiments_updated - tdp_experiments_updated.csv")
+experiment_table = read.csv("/Users/Ewann/splicing_comparison/samplesheet/tdp_experiments_updated-tdp_experiments_updated.csv")
 
 #REPLACE WITH YOUR DOWNLOAD FILE
-file_path = file.path(here::here(),'library_size')
+file_path = "/Users/Ewann/splicing_comparison/data/library_sizes"
 prefix = "library_size_"
 suffix = ".csv"
 estimate_files = list.files(file_path,
@@ -32,7 +32,8 @@ experiment_names = gsub(suffix,"",experiment_names)
 experiment_names = gsub(prefix,"",experiment_names) 
 
 #merging averages with experiment names
-tibble(experiment_names,average)
+average_libsize = tibble(experiment_names,average)
 
-
-  
+# write out the results
+updated_table = left_join(experiment_table, average_libsize, by = c("comparison" = "experiment_names"))
+write.csv(updated_table, "/Users/Ewann/splicing_comparison/samplesheet/tdp_experiments_updated-tdp_experiments_updated.csv")
