@@ -3,15 +3,52 @@ library(dplyr)
 library(tidyr)
 library(data.table)
 library(ggplot2)
+library(stringr)
 
 
 # load in dataset
-nygc = read_parquet("/Users/Ewann/splicing_comparison/data/selective_cryptic_psi_in_nygc.parquet")
+nygc = read_parquet("/Users/Ewann/splicing_comparison/data/nygc/selective_cryptic_psi_in_nygc.parquet")
+gencode = data.table::as.data.table(import.bed("/Users/Ewann/splicing_comparison/data/GRCh38/gencode.v42.annotation.bed12"))
 
-psi_tdp = nygc |>
+gentab = read.table("/Users/Ewann/splicing_comparison/data/GRCh38/gencode.v42.annotation.gtf.genes.tab", sep = "\t", header = TRUE)
+
+tx2gene = file.path(cluster_mount_point,"vyplab_reference_genomes/annotation/human/GRCh38/gencode.v42.tx2gene.csv")
+tx2gene <- data.table::fread(tx2gene,header=FALSE)
+colnames(tx2gene) = c("TXNAME", "GENEID")
+
+gencodes = gencode |> 
+  left_join(tx2gene, by = c("name" = "TXNAME")) |> 
+  left_join(gentab, by = c("GENEID" = "Gene.ID")) |> 
+  # mutate(seq = paste0(seqnames, ":", start, "-", end)) |>   
+  # select(seq, Gene.Symbol) |>
+  select(seqnames, start, end, Gene.Symbol) |> 
+  mutate(gene = Gene.Symbol, .keep = "unused")
+
+
+nygc_gene = data.frame(str_split_fixed(nygc$paste_into_igv_junction, "[:-]", 3)) 
+names(nygc_gene) <- c("seqnames", "start", "end")
+
+
+gr_gencodes = GRanges(gencodes)
+gr_nygc = GRanges(nygc_gene)
+overlaps = findOverlaps(gr_gencodes, gr_nygc_gene)
+overlapping_intervals = gr_gencodes[queryHits(overlaps)]
+
+nygc_gene$start <- as.numeric(nygc_gene$start)
+nygc_gene$end <- as.numeric(nygc_gene$end)
+
+gene_overlap = as.data.table(overlapping_intervals) |> unique() |> right_join(nygc_gene) |> filter(!is.na(gene))
+
+# psi_tdp =
+  nygc |>
+  cbind(nygc_seq) |> 
   filter(tdp_path == "path") |> 
-  select(psi, paste_into_igv_junction) |> 
-  group_by(paste_into_igv_junction) |> 
+  select(psi, seqnames, start, end) |> 
+  left_join(gencodes) |> 
+  filter(gene == "FUS")
+  
+  
+  group_by(paste_into_igv_junction) |>
   pivot_wider(names_from = paste_into_igv_junction, 
               names_repair = "check_unique", 
               values_from = psi,
