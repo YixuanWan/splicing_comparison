@@ -89,11 +89,11 @@ pheatmap(cor_gene)
 
 # Create the heatmap using ggplot2
 top_cor |>   
-ggplot(aes(x = Var1, y = Var2, fill = Freq)) +
+  ggplot(aes(x = Var1, y = Var2, fill = Freq)) +
   geom_tile() +
   scale_fill_gradient(low = "lightgrey", high = "purple") +
   labs(x = "", y = "", fill = "Correlation") +
   theme_minimal() +
   # theme(axis.text.x = element_blank(), axis.text.y = element_blank())
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
-  
+
