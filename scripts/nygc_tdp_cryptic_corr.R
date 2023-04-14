@@ -1,4 +1,3 @@
-library(arrow)
 library(dplyr)
 library(tidyr)
 library(data.table)
@@ -6,6 +5,9 @@ library(ggplot2)
 library(stringr)
 library(GenomicRanges)
 library(rtracklayer)
+library(pheatmap)
+library(cluster)
+library(dbscan)
 
 
 # load in dataset
@@ -59,41 +61,121 @@ psi_tdp_wide = psi_gene_tdp|>
 
 psi_wide = do.call(cbind, psi_tdp_wide) |> setnames(names(psi_tdp_wide))
 
+# make psi_long for clustering
+psi_long = t(psi_wide) |> as.data.frame(row.names = colnames(psi_wide)) 
+
+# clustering - decide the number of clusters
+  
+k <- 2:20
+
+# silhouette scores
+avg_sil = purrr::map(k, function(k){
+                        km = kmeans(psi_long, centers = k, nstart = 25)
+                        ss = silhouette(km$cluster, dist(psi_long))
+                        mean(ss[, 3])
+                        })
+plot(k, type='b', avg_sil, 
+     xlab='Number of clusters', 
+     ylab='Average Silhouette Scores', 
+     frame=FALSE) #k = 2
+
+# elbow - wss
+wss = purrr::map(k, function(k){
+                    kmeans(psi_long, centers = k, nstart = 25)$tot.withinss
+                  })
+plot(k, type='b', wss, #plot wss
+     xlab='Number of clusters', 
+     ylab='WSS', 
+     frame=FALSE) #k = 2
+
+
+# clustering - actual clustering
+kmeans_psi = kmeans(psi_long, 3)
+
+cluster_psi = data.frame(rowMeans(psi_long), cluster = kmeans_psi$cluster)
+cluster_psi$gene = rownames(psi_long)
+
+
+# plot the results with ggplot2
+pca = prcomp(psi_long)
+pc_psi = data.frame(PC1 = pca$x[,1], PC2 = pca$x[,2])
+
+cluster_psi_plot = cbind(cluster_psi, pc_psi)
+cluster_psi_plot$cluster <- factor(cluster_psi_plot$cluster)
+cluster_psi_plot |> 
+  ggplot(aes(x = PC1, y = PC2)) +
+  geom_point(aes(colour = cluster)) +
+  labs(title = "K-means Clustering Results",
+       x = "PC1",
+       y = 'PC2',
+       colour = "Cluster") +
+  scale_x_continuous(trans = scales::pseudo_log_trans(sigma = 0.1, base = 2)) +
+  scale_y_continuous(trans = scales::pseudo_log_trans(sigma = 0.1, base = 2)) +
+  theme_minimal()
+
+# clustering with DBSCAN
+dbscan_psi = dbscan(psi_long, eps = 1, minPts = 5)
+dbscan_psi_plot = data.frame(mean_psi, cluster = dbscan_psi$cluster)
+dbscan_psi_plot$cluster = factor (dbscan_psi_plot$cluster)
+dbscan_psi_plot$gene = rownames(psi_long)
+dbscan_psi_plot = cbind(dbscan_psi_plot, pc_psi)
+
+dbscan_psi_plot |> 
+  ggplot(aes(x = PC1, y = PC2)) +
+  geom_point(aes(colour = cluster)) +
+  labs(title = "DBSCAN Clustering Results",
+       x = "PC1",
+       y = 'PC2',
+       colour = "Cluster") +
+  scale_x_continuous(trans = scales::pseudo_log_trans(sigma = 0.1, base = 10)) +
+  scale_y_continuous(trans = scales::pseudo_log_trans(sigma = 0.1, base = 10)) +
+  theme_minimal()
+
+
+# use pheatmap to plot the results
+psi_sub = psi_long |> 
+  filter(rowMeans(psi_long) > 0.05)
+
+gene_cluster = cbind(kMeans = cluster_psi$cluster, DBSCAN = dbscan_psi$cluster) |> 
+  as.data.table() |> 
+  mutate(kMeans = factor(kMeans), .keep = "unused") |> 
+  mutate(DBSCAN = factor(DBSCAN), .keep = "unused")
+rownames(gene_cluster) = cluster_psi$gene
+
+pheatmap(psi_sub, 
+         show_rownames = TRUE, 
+         show_colnames = FALSE, 
+         cluster_cols = FALSE,
+         annotation_row = gene_cluster,
+         cutree_rows = 2,
+         fontsize = 5,
+         main = 'junctions with average psi > 0.07')
+
+
+
+
 # perform correlation
 cor_matrix = psi_wide |> cor() 
-diag(cor_matrix) = 0
 
 # Convert the correlation matrix to a long format data frame
 cor_df = as.data.frame(as.table(cor_matrix))|> 
-  arrange(desc(Freq)) 
+  arrange(desc(Freq)) |> 
+  filter(Var1 != Var2)
 
-cor_gene1 = data.frame(str_split_fixed(cor_df$Var1, "[_]", 2)) 
+#get rid of the duplicates
+df_sorted <- t(apply(cor_df, 1, function(x) sort(x)))
+cor_unique = cor_df[!duplicated(df_sorted), ]
+
+cor_gene1 = data.frame(str_split_fixed(cor_unique$Var1, "[_]", 2)) 
 names(cor_gene1) <- c("gene1", "junction1")
-cor_gene2 = data.frame(str_split_fixed(cor_df$Var2, "[_]", 2)) 
+cor_gene2 = data.frame(str_split_fixed(cor_unique$Var2, "[_]", 2)) 
 names(cor_gene2) <- c("gene2", "junction2")
 
-cor_gene = cbind(cor_df, cor_gene1, cor_gene2) |> 
+cor_gene = cbind(cor_unique, cor_gene1, cor_gene2) |> 
   select(-Var1, -Var2) |> 
   filter(gene1 != gene2) |> 
-  arrange(desc(Freq))
+  arrange(desc(Freq)) 
 
 # write out the results
 write.csv(cor_df, "/Users/Ewann/splicing_comparison/results/nygc/cryptic_tdp_corr.csv", row.names = FALSE)
 write.csv(cor_gene, "/Users/Ewann/splicing_comparison/results/nygc/cryptic_tdp_corr_by_gene.csv", row.names = FALSE)
-
-
-# use pheatmap to plot the results
-library(pheatmap)
-cor_gene = read.csv("/Users/Ewann/splicing_comparison/results/nygc/cryptic_tdp_corr_by_gene.csv", header = TRUE)
-pheatmap(cor_gene)
-
-# Create the heatmap using ggplot2
-top_cor |>   
-  ggplot(aes(x = Var1, y = Var2, fill = Freq)) +
-  geom_tile() +
-  scale_fill_gradient(low = "lightgrey", high = "purple") +
-  labs(x = "", y = "", fill = "Correlation") +
-  theme_minimal() +
-  # theme(axis.text.x = element_blank(), axis.text.y = element_blank())
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
-
