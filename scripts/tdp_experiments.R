@@ -21,7 +21,7 @@ tdp_deseq <- function(file){
 }
 
 # loading the tables
-splicingTable = read.csv("/Users/Ewann/splicing_comparison/data/splicing_full_delta_psi_tables.csv")
+splicingTable = read.csv("/Users/Ewann/splicing_comparison/data/majiq/splicing_full_delta_psi_tables.csv")
 metatable = read.csv("/Users/Ewann/splicing_comparison/samplesheet/tdp_experiments_updated - tdp_experiments_updated.csv")
 
 # work out the number of cryptic events
@@ -29,10 +29,10 @@ crypticTable = splicingTable |>
   filter(comparison %in% metatable$comparison_majiq) |> 
   select(gene_name,paste_into_igv_junction,junc_cat,baseline_PSI,contrast_PSI,comparison,strand) |>  
   mutate(is_cryptic = contrast_PSI > 0.1 & baseline_PSI < 0.05)  |> 
-  group_by(comparison,is_cryptic) |>  
+  group_by(comparison,is_cryptic) |>   
   summarize(n_jun = n_distinct(paste_into_igv_junction)) |> 
   ungroup() |>  
-  filter(is_cryptic == TRUE) |> 
+  filter(is_cryptic == TRUE) |>  
   right_join(metatable, by = c("comparison" = "comparison_majiq")) |> 
   mutate(n_cryptic_junctions = n_jun, .keep = "unused") |> 
   select(-is_cryptic) |>  

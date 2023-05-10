@@ -6,25 +6,33 @@ library(eulerr)
 
   
 #read and the highest files
-dz_highest <- read.csv('/Users/Ewann/splicing_comparison/majiq_dz_curves/Control-TDP43KD1_annotated_junctions.csv')
-sy_highest <- read.csv('/Users/Ewann/splicing_comparison/majiq_sy5y_curves/noDox-dox0075_annotated_junctions.csv')
-
+dz_highest <- read.csv('/Users/Ewann/splicing_comparison/data/majiq/curves_dz/Control-TDP43KD1_annotated_junctions.csv')
+sy_highest <- read.csv('/Users/Ewann/splicing_comparison/data/majiq/curves_sh/noDox-dox0075_annotated_junctions.csv')
+corticalHumphrey <- read.csv("/Users/Ewann/splicing_comparison/data/majiq/majiq_tables_firstpanel/controlHumphreyCorticalNeuron-TDP43KDHumphreyCorticalNeuron_annotated_junctions.csv")
 
 dz_cryptic_high = dz_highest %>% 
   filter(tdp43kd1_mean_psi > 0.1 & control_mean_psi < 0.05)  %>% 
   mutate(cryptic_events = paste(paste_into_igv_junction, gene_name)) %>% 
   select(cryptic_events) %>% 
-  mutate(dz_high = TRUE)
+  mutate(dz_high = TRUE) |> 
+  unique()
 
 
 sy_cryptic_high = sy_highest %>% 
   filter(dox0075_mean_psi > 0.1 & no_dox_mean_psi < 0.05)  %>%
   mutate(cryptic_events = paste(paste_into_igv_junction, gene_name)) %>% 
   select(cryptic_events) %>%
-  mutate(sy5y_high = TRUE)
+  mutate(sy5y_high = TRUE) |> 
+  unique()
 
+cortical_cryptic_high = corticalHumphrey %>% 
+  filter(tdp43kd_humphrey_cortical_neuron_mean_psi > 0.1 & control_humphrey_cortical_neuron_mean_psi < 0.05)  %>%
+  mutate(cryptic_events = paste(paste_into_igv_junction, gene_name)) %>% 
+  select(cryptic_events) %>%
+  mutate(cortical_high = TRUE) |> 
+  unique()
 
-overlap_highest = full_join(dz_cryptic_high, sy_cryptic_high)
+overlap_highest = full_join(dz_cryptic_high, sy_cryptic_high) %>% full_join(., cortical_cryptic_high)
 
 #Plot the Venn diagram
 overlap_df_high = overlap_highest %>% 
@@ -33,7 +41,7 @@ overlap_df_high = overlap_highest %>%
   tibble::remove_rownames()  %>%  
   tibble::column_to_rownames('cryptic_events')
 
-overlap_df_high %>% euler() %>% plot(quantities = TRUE, main = "Highest TDP KD", labels = FALSE)
+overlap_df_high %>% euler() %>% plot(quantities = TRUE, main = "Highest TDP KD", labels = TRUE)
 
 #Identify the cryptic events in highest TDP KD
 cryptic_high = overlap_highest %>% 
@@ -97,6 +105,4 @@ overlap_df %>% euler() %>% plot(quantities = TRUE, main = "Shared Common Cryptic
 cryptic_shared = comparison %>% 
   filter(cryptic_shared == TRUE)  
   
-
-
 
