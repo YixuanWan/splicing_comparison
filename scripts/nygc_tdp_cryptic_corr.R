@@ -9,10 +9,11 @@ library(pheatmap)
 library(cluster)
 library(dbscan)
 library(ggcorrplot)
+library(ggraph)
 
 
 # load in dataset
-nygc = read_parquet("/Users/Ewann/splicing_comparison/data/nygc/selective_cryptic_psi_in_nygc.parquet")
+nygc = arrow::read_parquet("/Users/Ewann/splicing_comparison/data/nygc/selective_cryptic_psi_in_nygc.parquet")
 gencode = as.data.table(import.bed("/Users/Ewann/splicing_comparison/data/GRCh38/gencode.v42.annotation.bed12"))
 
 cluster_mount_point = "/Users/Ewann/cluster"
@@ -25,9 +26,8 @@ gencodes = gencode |>
   left_join(tx2gene, by = c("name" = "TXNAME")) |> 
   left_join(gentab, by = c("GENEID" = "Gene.ID")) |> 
   select(seqnames, start, end, Gene.Symbol) |> 
-  mutate(gene = Gene.Symbol, .keep = "unused")
-
-gr_gencodes = GRanges(gencodes) |> unique()
+  mutate(gene = Gene.Symbol, .keep = "unused") |> 
+  GRanges() |> unique()
 
 # select tdp-pathology patients, get rid of other columns
 nygc_tdp = nygc |>
@@ -38,16 +38,17 @@ nygc_tdp = nygc |>
 # create a GRange list for psi_tdp
 gene_tdp = data.frame(str_split_fixed(nygc_tdp$paste_into_igv_junction, "[:-]", 3)) 
 names(gene_tdp) <- c("seqnames", "start", "end")
-psi_tdp = cbind(nygc_tdp, gene_tdp) |> select(-paste_into_igv_junction)
-gr_psi_tdp = GRanges(psi_tdp)
+psi_tdp = cbind(nygc_tdp, gene_tdp) |> 
+  select(-paste_into_igv_junction) |> 
+  GRanges()
 
 # get gene names for psi_tdp
-overlaps_gene_tdp = findOverlaps(gr_psi_tdp, gr_gencodes)
+overlaps_gene_tdp = findOverlaps(psi_tdp, gencodes)
 uniqueHits = overlaps_gene_tdp |> 
   as.data.frame() |> 
   distinct(queryHits, .keep_all = TRUE)
-overlaps_tdp = gr_psi_tdp[uniqueHits$queryHits]
-mcols(overlaps_tdp)$gene = mcols(gr_gencodes[uniqueHits$subjectHits])$gene
+overlaps_tdp = psi_tdp[uniqueHits$queryHits]
+mcols(overlaps_tdp)$gene = mcols(gencodes[uniqueHits$subjectHits])$gene
 
 psi_gene_tdp = overlaps_tdp |> 
   as.data.table() |> 
@@ -64,8 +65,8 @@ psi_tdp_wide = psi_gene_tdp|>
 
 psi_wide = do.call(cbind, psi_tdp_wide) |> setnames(names(psi_tdp_wide))
 
-# make psi_long for clustering
-psi_long = t(psi_wide) |> as.data.frame(row.names = colnames(psi_wide)) 
+# make psi_long for clustering - cortex
+psi_long = t(psi_cortex) |> as.data.frame(row.names = colnames(psi_cortex)) 
 
 # kmeans clustering - decide the number of clusters
 # NOTE: substituted dataset with kmeans_higher_psi - the cluster with higher PSI in the original psi_long data
@@ -275,13 +276,13 @@ kmeans_gene = as.data.table(kmeans_psi_plot$cluster) |>
   mutate(cluster = factor(V1), .keep = "unused")  
 rownames(kmeans_gene) = kmeans_psi_plot$gene
 
-pheatmap(kmeans_higher_psi, 
+pheatmap(psi_long, 
          show_rownames = FALSE, 
          show_colnames = FALSE, 
-         # cluster_cols = FALSE,
+         cluster_cols = FALSE,
          annotation_row = kmeans_gene,
          fontsize = 5,
-         main = 'junctions in K-means cluster 1')
+         main = 'Cortex')
 
 hclust_kmeans = hclust(dist(kmeans_higher_psi), method = "complete")
 stats::as.dendrogram(hclust_kmeans) |> 
@@ -322,13 +323,18 @@ psi_tdp_cortex = psi_gene_tdp|>
 
 sd_psi = sapply(psi_cortex, sd) 
 psi_cortex = do.call(cbind, psi_tdp_cortex) |> 
-  setnames(names(psi_tdp_cortex)) |> 
+  setnames(names(psi_tdp_cortex)) |>
   select(which(sd_psi != 0)) #ENAH_chr1:225535563-225537167
 
 cor_cortex = psi_cortex |> cor() |> round(3)
 p_cor_cortex = psi_cortex |> cor_pmat() 
 padj_cor_cortex = p.adjust(p_cor_cortex, method = "BY", n = length(p_cor_cortex)) |> 
   matrix(ncol = dim(p_cor_cortex)[1], dimnames = dimnames(cor_cortex))
+
+cor_table = matrix(0, nrow = nrow(cor_cortex), ncol = ncol(cor_cortex), dimnames = dimnames(cor_cortex))
+cor_table[padj_cor_cortex < 0.05] = cor_cortex[padj_cor_cortex < 0.05]
+
+pheatmap(cor_table)
 
 ggcorrplot(cor_cortex,
            type = "upper",
@@ -369,18 +375,44 @@ cor_gene = cbind(cor_unique, cor_gene1, cor_gene2) |>
 
 # plot the correlation
 sig_cor_cortex = cor_gene |> 
-  filter(padj < 0.05) 
+  filter(padj < 0.05) |> 
+  as.data.frame()
 
-# sig_cor_cortex |> 
-#   ggplot(aes(x = gene1, y = gene2, fill = estimate)) +
-#   geom_tile() + 
-#   theme_minimal() +
-#   theme(axis.text.x = element_text(size = 1),
-#         axis.text.y = element_text(size = 1)) +
-#   scale_fill_gradient(low = "white", high = "blue")
+sig_cor_cortex |>
+  ggplot(aes(x = gene1, y = gene2)) +
+  geom_point(aes(color = estimate)) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(size = 1, angle = 45),
+        axis.text.y = element_text(size = 1)) +
+  scale_color_gradient(low = "grey", high = "blue")  
 
+
+# Identify the most correlated genes
+sig_genecounts = sig_cor_cortex |> 
+  select(gene1, gene2) |> 
+  pivot_longer(everything()) |> 
+  group_by(value) |>
+  mutate(counts = n()) |>
+  distinct(value, .keep_all = TRUE) |>
+  select(-name) |>
+  arrange(desc(counts)) |> 
+  mutate(top = ifelse(counts > 100, "yes", "no"))
+
+sig_genecounts |> 
+  ggplot(aes(x = value, y = counts)) +
+  geom_point(aes(color = top)) +
+  ggrepel::geom_text_repel(aes(label = value), size = 3, max.overlaps = 5) +
+  theme_minimal() + 
+  theme(axis.text.x = element_blank()) + 
+  geom_hline(yintercept = 100, colour = 'grey') + 
+  labs(x = "Genes",
+       y = "Counts",
+       legend = element_blank()) +
+  scale_color_discrete(type = c("grey", "orange"))
+  
 
 
 # write out the results
 write.csv(cor_df, "/Users/Ewann/splicing_comparison/results/nygc/cryptic_tdp_corr.csv", row.names = FALSE)
 write.csv(cor_gene, "/Users/Ewann/splicing_comparison/results/nygc/cryptic_tdp_corr_by_gene.csv", row.names = FALSE)
+write.csv(sig_cor_cortex, "/Users/Ewann/splicing_comparison/results/nygc/cortex_cryptic_corr.csv", row.names = FALSE)

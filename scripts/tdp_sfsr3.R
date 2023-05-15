@@ -5,9 +5,200 @@ library(tidyr)
 library(data.table)
 library(stringr)
 library(GenomicRanges)
-
+library(ggplot2)
 
 source("scripts/snapcount_sra_cryptics.R")
+
+# summarise type of splicing
+tdpkd = fread('~/cluster/first_weeks/splicing_comparisons/tdp_srsf3/majiq/delta_psi_voila_tsv/Control-TDP43KD_annotated_junctions.csv')
+srsf3kd = fread("~/cluster/first_weeks/splicing_comparisons/tdp_srsf3/majiq/delta_psi_voila_tsv/Control-SRSF3KD_annotated_junctions.csv")
+tdpsrsf3kd = fread("~/cluster/first_weeks/splicing_comparisons/tdp_srsf3/majiq/delta_psi_voila_tsv/Control-TDP43KDSRSF3KD_annotated_junctions.csv")
+
+tdp_cj = tdpkd |> 
+  dplyr::select(gene_name,paste_into_igv_junction,junc_cat,probability_changing,control_mean_psi,tdp43kd_mean_psi,strand) |>  
+  filter(control_mean_psi < 0.05 & tdp43kd_mean_psi > 0.10) |> 
+  arrange(-tdp43kd_mean_psi) |> 
+  filter(junc_cat != 'annotated') |> 
+  pull(paste_into_igv_junction) |> unique()
+
+shared_cj = srsf3kd |> 
+  dplyr::select(gene_name,paste_into_igv_junction,junc_cat,probability_changing,control_mean_psi,srsf3kd_mean_psi,strand) |>  
+  filter(control_mean_psi < 0.05 & srsf3kd_mean_psi > 0.10) |> 
+  arrange(-srsf3kd_mean_psi) |> 
+  filter(paste_into_igv_junction %in% tdp_cj) |> 
+  distinct(paste_into_igv_junction, .keep_all = TRUE) |> 
+  filter(junc_cat != "none")
+# |> filter(junc_cat %in% c("novel_donor","novel_acceptor")) 
+
+# Type of cryptic junctions
+shared_cj |> 
+  ggplot(aes(x = "", y = srsf3kd_mean_psi, fill = junc_cat)) +
+  geom_bar(stat = "identity") +
+  coord_polar("y", start = 0) + 
+  theme_void() + 
+  scale_fill_brewer(palette = "Set3") +
+  labs(
+    title = "Shared cryptic junctions in TDP43KD and SRSF3KD",
+    fill = "Junction type"
+  )
+
+# PSI comparison
+psi_cj = tdpkd |> 
+  dplyr::select(gene_name,paste_into_igv_junction,junc_cat,probability_changing,control_mean_psi,tdp43kd_mean_psi,strand) |>  
+  filter(control_mean_psi < 0.05 & tdp43kd_mean_psi > 0.10) |> 
+  arrange(-tdp43kd_mean_psi) |> 
+  filter(junc_cat != 'annotated') |> 
+  distinct(paste_into_igv_junction, junc_cat, .keep_all = TRUE) |> 
+  select(-probability_changing, -control_mean_psi, -strand) |> 
+  right_join(shared_cj, by = c("paste_into_igv_junction", "junc_cat", "gene_name")) |> 
+  filter(!is.na(tdp43kd_mean_psi)) |> 
+  filter(junc_cat != "none") |> 
+  select(-probability_changing, -control_mean_psi, -strand) 
+
+psi_cj |> 
+  pivot_longer(cols = ends_with("mean_psi"), names_to = "condition", values_to = "mean_psi") |> 
+  ggplot(aes(x = condition, y = mean_psi, fill = condition)) + 
+  geom_boxplot() +
+  theme_minimal() +
+  labs(
+    title = "PSI levels - Shared cryptic junctions in TDP43KD and SRSF3KD",
+    fill = "Junction type",
+    x = "Condition",
+    y = "PSI"
+  ) +
+  theme(legend.position = "none") +
+  scale_x_discrete(labels = c("SRSF3KD", "TDP43KD")) +
+  scale_fill_brewer(palette = "Set3")
+
+psi_cj |> 
+  mutate(psi_com = srsf3kd_mean_psi - tdp43kd_mean_psi) |> 
+  ggplot(aes(x = junc_cat, y = psi_com)) +
+  geom_boxplot(fill = "lightgrey") +
+  theme_minimal() +
+  geom_jitter(size = 0.8, aes(colour = junc_cat)) +
+  theme(legend.position = "none") +
+  labs(
+    x = "Junction type",
+    y = "Mean PSI/SRSF3KD - TDP43KD") +
+  geom_hline(yintercept = 0) +
+  scale_colour_brewer(palette = "Set3")
+
+psi_cj |> 
+  mutate(psi_com = srsf3kd_mean_psi - tdp43kd_mean_psi) |> 
+  mutate(outlier = ifelse(((psi_com < 0.2) & (psi_com > -0.2)), FALSE, TRUE)) |> 
+  ggplot(aes(x = paste_into_igv_junction, y = psi_com)) +
+  geom_point(aes(colour = outlier)) +
+  theme_minimal() +
+  theme(axis.text.x = element_blank()) +
+  ggrepel::geom_text_repel(aes(label = gene_name), size = 3, max.overlaps = 10) +
+  labs(
+    x = "Cyptic junctions",
+    y = "Mean PSI/SRSF3KD - TDP43KD") +
+  theme(legend.position = "none") +
+  geom_hline(yintercept = 0.2, colour = 'grey') +
+  geom_hline(yintercept = -0.2, colour = 'grey') +
+  scale_colour_manual(values = c('darkgrey', 'orange'))
+
+psi_cj |> 
+  mutate(psi_com = srsf3kd_mean_psi - tdp43kd_mean_psi) |> 
+  mutate(outlier = ifelse(((psi_com < 0.2) & (psi_com > -0.2)), FALSE, TRUE)) |> 
+  ggplot(aes(x = tdp43kd_mean_psi, y = srsf3kd_mean_psi)) +
+  geom_point(aes(colour = outlier)) +
+  geom_abline(intercept = 0.2, colour = 'darkgrey') +
+  geom_abline(intercept = -0.2, colour = 'darkgrey') +
+  geom_abline() +
+  theme_minimal() +
+  scale_colour_manual(values = c('grey', 'orange')) +
+  ggrepel::geom_text_repel(aes(label = gene_name), size = 3, max.overlaps = 5) +
+  theme(legend.position = "none") +
+  labs(
+    x = "PSI/TDP43KD",
+    y = "PSI/SRSF3KD"
+  )
+
+
+
+
+
+tdpkd |> 
+  dplyr::select(gene_name,paste_into_igv_junction,junc_cat,probability_changing,control_mean_psi,tdp43kd_mean_psi,strand) |>  
+  filter(control_mean_psi < 0.05 & tdp43kd_mean_psi > 0.10) |> 
+  arrange(-tdp43kd_mean_psi) |> filter(gene_name == "HDGFL2")
+
+
+# plot numbers of cryptic junctions in TDP43KD, SRSF3KD, and double KD groups
+tdpkd_cj = tdpkd |> 
+  dplyr::select(gene_name,paste_into_igv_junction,junc_cat,probability_changing,control_mean_psi,tdp43kd_mean_psi,strand) |>  
+  filter(control_mean_psi < 0.05 & tdp43kd_mean_psi > 0.10) |> 
+  arrange(-tdp43kd_mean_psi) |> 
+  filter(junc_cat != 'annotated') |> 
+  select(gene_name, paste_into_igv_junction, junc_cat) |> 
+  mutate(tdpKD = TRUE) |> 
+  distinct(paste_into_igv_junction, junc_cat, .keep_all = TRUE)
+
+srsf3kd_cj = srsf3kd |> 
+  dplyr::select(gene_name,paste_into_igv_junction,junc_cat,probability_changing,control_mean_psi,srsf3kd_mean_psi,strand) |>  
+  filter(control_mean_psi < 0.05 & srsf3kd_mean_psi > 0.10) |> 
+  arrange(-srsf3kd_mean_psi) |> 
+  filter(junc_cat != 'annotated') |> 
+  select(gene_name, paste_into_igv_junction, junc_cat) |> 
+  mutate(srsf3KD = TRUE) |> 
+  distinct(paste_into_igv_junction, junc_cat, .keep_all = TRUE)
+
+
+tdpsrsf3kd_cj = tdpsrsf3kd |> 
+  dplyr::select(gene_name,paste_into_igv_junction,junc_cat,probability_changing,control_mean_psi,tdp43kdsrsf3kd_mean_psi,strand) |>  
+  filter(control_mean_psi < 0.05 & tdp43kdsrsf3kd_mean_psi > 0.10) |> 
+  arrange(-tdp43kdsrsf3kd_mean_psi) |> 
+  filter(junc_cat != 'annotated') |> 
+  select(gene_name, paste_into_igv_junction, junc_cat) |> 
+  mutate(doubleKD = TRUE) |> 
+  distinct(paste_into_igv_junction, junc_cat, .keep_all = TRUE)
+
+ 
+overlap_cj = full_join(tdpkd_cj, srsf3kd_cj, by = c("paste_into_igv_junction", "junc_cat"), relationship = "many-to-many") |> 
+  full_join(tdpsrsf3kd_cj, by = c("paste_into_igv_junction", "junc_cat"), relationship = "many-to-many") |> 
+  mutate(gene_id = ifelse(is.na(gene_name.x), gene_name.y, gene_name.x), .keep = "unused") |> 
+  mutate(gene_id = ifelse(is.na(gene_id), gene_name, gene_id), .keep = "unused") |> 
+  filter(junc_cat != 'none') |> 
+  replace(is.na(overlap_cj), FALSE) 
+
+
+overlap_cj |> 
+  select(tdpKD, srsf3KD, doubleKD) |> 
+  eulerr::euler() |> 
+  plot(quantities = TRUE, main = "Number of cyptic junctions", legend = list(labels = c("TDP43KD", "SRSF3KD", "DoubleKD")))
+
+cj_longer = overlap_cj |> 
+  pivot_longer(cols = ends_with("KD"),
+               names_to = "condition",
+               values_to = "value") |> 
+  filter(value == TRUE)
+
+cj_longer |> 
+  ggplot(aes(x = condition, fill = junc_cat)) +
+  geom_bar() +
+  theme_minimal() +
+  labs(
+    title = "Number of cryptic junctions",
+    fill = "Junction type"
+  ) +
+  scale_fill_brewer(palette = "Set3")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Select cryptic events from NYGC dataset
   # load in dataset
