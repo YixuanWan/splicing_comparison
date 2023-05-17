@@ -66,7 +66,18 @@ psi_tdp_wide = psi_gene_tdp|>
 psi_wide = do.call(cbind, psi_tdp_wide) |> setnames(names(psi_tdp_wide))
 
 # make psi_long for clustering - cortex
-psi_long = t(psi_cortex) |> as.data.frame(row.names = colnames(psi_cortex)) 
+psi_long = t(psi_wide) |> as.data.frame(row.names = colnames(psi_wide)) 
+
+# use UMAP to plot the results
+psi_long_umap = umap(psi_long)
+
+psi_long_umap$layout |> 
+  as.data.frame() |> 
+  tibble::rownames_to_column(var = "junction") |> 
+  ggplot(aes(x = V1, y = V2)) +
+  geom_point() +
+  theme_minimal()
+ 
 
 # kmeans clustering - decide the number of clusters
 # NOTE: substituted dataset with kmeans_higher_psi - the cluster with higher PSI in the original psi_long data
@@ -331,10 +342,9 @@ p_cor_cortex = psi_cortex |> cor_pmat()
 padj_cor_cortex = p.adjust(p_cor_cortex, method = "BY", n = length(p_cor_cortex)) |> 
   matrix(ncol = dim(p_cor_cortex)[1], dimnames = dimnames(cor_cortex))
 
-cor_table = matrix(0, nrow = nrow(cor_cortex), ncol = ncol(cor_cortex), dimnames = dimnames(cor_cortex))
+cor_table = matrix(NA, nrow = nrow(cor_cortex), ncol = ncol(cor_cortex), dimnames = dimnames(cor_cortex))
 cor_table[padj_cor_cortex < 0.05] = cor_cortex[padj_cor_cortex < 0.05]
 
-pheatmap(cor_table)
 
 ggcorrplot(cor_cortex,
            type = "upper",
@@ -376,15 +386,75 @@ cor_gene = cbind(cor_unique, cor_gene1, cor_gene2) |>
 # plot the correlation
 sig_cor_cortex = cor_gene |> 
   filter(padj < 0.05) |> 
+  filter(estimate)
   as.data.frame()
 
-sig_cor_cortex |>
-  ggplot(aes(x = gene1, y = gene2)) +
-  geom_point(aes(color = estimate)) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(size = 1, angle = 45),
-        axis.text.y = element_text(size = 1)) +
-  scale_color_gradient(low = "grey", high = "blue")  
+library(igraph)
+edges_cor = sig_cor_cortex |> 
+  select(gene1, gene2, estimate)
+colnames(edges_cor) = c("from", "to", "weight")
+# nodes_cor = tibble(sig_cor_cortex$gene1, sig_cor_cortex$gene2)
+net = graph_from_data_frame(d = edges_cor, vertices = sig_genecounts, directed = FALSE)
+net = simplify(net, remove.multiple = TRUE, remove.loops = TRUE)
+net_sp = delete_edges(net, E(net)[weight < quantile(edges_cor$weight, 0.75)])
+
+
+colrs = c("orange", 'grey50')
+
+pdf(width = 10, height = 10, "/Users/Ewann/splicing_comparison/results/nygc/cortex_cryptic_corr.pdf")
+
+for(val in V(net_sp)[V(net_sp)$top == 1]$name){
+
+# selectivelt set edge colours
+# inc.edges = incident_edges(net_sp, V(net_sp)[top == 1], mode = "all") 
+inc.edges = incident(net_sp, V(net_sp)[name == val], mode = "all")
+ecol = rep('grey80', ecount(net_sp))
+for(i in inc.edges){
+  ecol[i] = "orange"
+}
+
+# selectively set labels
+neigh.nodes = neighbors(net_sp, V(net_sp)[name == val], mode = "out")
+vlab = rep("", vcount(net_sp))
+vlab[neigh.nodes] = V(net_sp)[neigh.nodes]$name
+vlab[V(net_sp)[name == val]] = V(net_sp)[V(net_sp)[name == val]]$name
+
+
+# selectively set node colours
+vcol = rep("grey80", vcount(net_sp))
+vcol[neigh.nodes] = "orange"
+vcol[V(net_sp)[name == val]] = "gold"
+
+plot = plot(net_sp, 
+     main = val,
+     vertex.shape = "circle",
+     vertex.size = V(net)$counts*0.1,
+     vertex.color = vcol,
+     # vertex.label.dist = 1,
+     # vertex.label.degree = 0,
+     vertex.frame.color = "white",
+     vertex.label = vlab, 
+     vertex.label.cex = .5,
+     vertex.label.color = "black",
+     vertex.label.font = 2,
+     edge.lty = 1,
+     edge.color = ecol,
+     edge.width = E(net_sp)$weight,
+     layout = layout_with_graphopt(net_sp, charge = 1000, spring.length = 1000))
+
+
+print(plot)
+}
+dev.off()
+
+
+# sig_cor_cortex |>
+#   ggplot(aes(x = gene1, y = gene2)) +
+#   geom_point(aes(color = estimate)) +
+#   theme_minimal() +
+#   theme(axis.text.x = element_text(size = 1, angle = 45),
+#         axis.text.y = element_text(size = 1)) +
+#   scale_color_gradient(low = "grey", high = "blue")  
 
 
 # Identify the most correlated genes
@@ -396,7 +466,7 @@ sig_genecounts = sig_cor_cortex |>
   distinct(value, .keep_all = TRUE) |>
   select(-name) |>
   arrange(desc(counts)) |> 
-  mutate(top = ifelse(counts > 100, "yes", "no"))
+  mutate(top = ifelse(counts > 60, 1, 2))
 
 sig_genecounts |> 
   ggplot(aes(x = value, y = counts)) +
@@ -409,6 +479,30 @@ sig_genecounts |>
        y = "Counts",
        legend = element_blank()) +
   scale_color_discrete(type = c("grey", "orange"))
+  
+
+# plot psi for genes in sig_genecounts
+psi_by_gene = as.data.table(rowMeans(psi_long), keep.rownames = TRUE) |> 
+  mutate(gene = str_split_fixed(V1, "[_]",3)[,1]) |>
+  mutate(junc = V1, .keep = "unused") |> 
+  mutate(mean_psi = V2, .keep = "unused") |> 
+  left_join(sig_genecounts, by = c("gene" = "value")) |> 
+  filter(!is.na(counts)) 
+
+psi_by_gene$junc = reorder(psi_by_gene$junc, psi_by_gene$mean_psi)
+
+psi_by_gene |> 
+  filter(top == 1) |> 
+  ggplot(aes(y = junc, x = mean_psi)) +
+  theme_minimal() +
+  # scale_fill_manual(values = c("top" = "orange","no" ="grey50")) +
+  geom_bar(stat = "identity", fill = 'orange') +
+  labs(
+    # fill = "Most correlated?",
+    y = "Junction",
+    x = "Mean PSI") +
+  # theme(axis.text.x = element_text(angle = 90))
+
   
 
 
