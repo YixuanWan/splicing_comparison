@@ -2,7 +2,7 @@ source("scripts/snapcount_sra_cryptics.R")
 
 
 early_cryptics = fread("/Users/Ewann/splicing_comparison/data/early_cryptics_to_query.csv")
-early_cryptics = early_cryptics |> mutate(n_samples = count, n_tdp_samples = tdp_studies, .keep = "unused")
+early_cryptics = early_cryptics |> select(-n_tdp_studies, -mean_coverage_tdp, -n_non_tdp_studies, -mean_coverage_non_tdp)
 
 early_cryptics = early_cryptics |> 
   mutate(count = 0)
@@ -25,12 +25,33 @@ tdp_studies = early_cryptics_query_long |>
   group_by(coords) |> 
   distinct(study_title, .keep_all = TRUE) |> 
   summarise(n_tdp_studies = n(), mean_coverage_tdp = mean(coverage))
+
+tdp_samples = early_cryptics_query_long |> 
+  filter(coverage > 2) |> 
+  filter(!grepl("TDP", study_title, ignore.case = TRUE)) |> 
+  filter(grepl("TDP", sample_title, ignore.case = TRUE)) |> 
+  group_by(coords) |> 
+  distinct(study_title, .keep_all = TRUE) |> 
+  summarise(n_tdp_studies = n(), mean_coverage_tdp = mean(coverage))
+
+tardbp_samples = early_cryptics_query_long |> 
+  filter(coverage > 2) |> 
+  filter(!grepl("TDP", study_title, ignore.case = TRUE)) |> 
+  filter(grepl("TARDBP", sample_title, ignore.case = TRUE)) |> 
+  group_by(coords) |> 
+  distinct(study_title, .keep_all = TRUE) |> 
+  summarise(n_tdp_studies = n(), mean_coverage_tdp = mean(coverage))
+
+tdp_studies = rbind(tdp_studies, tdp_samples, tardbp_samples)
+
 early_cryptics = left_join(early_cryptics, tdp_studies, by = c("snapcount_input" = "coords"))
 
 # summarise the number of studies not containing TDP43
 non_tdp_studies = early_cryptics_query_long |> 
   filter(coverage > 2) |> 
   filter(!grepl("TDP", study_title, ignore.case = TRUE)) |> 
+  filter(!grepl("TARDBP", sample_title, ignore.case = TRUE)) |> 
+  filter(!grepl("TDP", sample_title, ignore.case = TRUE)) |> 
   group_by(coords) |> 
   distinct(study_title, .keep_all = TRUE) |> 
   summarise(n_non_tdp_studies = n(), mean_coverage_non_tdp = mean(coverage))
