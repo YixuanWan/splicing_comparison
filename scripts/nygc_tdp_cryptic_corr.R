@@ -14,6 +14,7 @@ library(ggraph)
 
 # load in dataset
 nygc = arrow::read_parquet("/Users/Ewann/splicing_comparison/data/nygc/selective_cryptic_psi_in_nygc.parquet")
+all_nygc = arrow::read_parquet("/Users/Ewann/splicing_comparison/data/nygc/all_psi_in_nygc.parquet")
 gencode = as.data.table(import.bed("/Users/Ewann/splicing_comparison/data/GRCh38/gencode.v42.annotation.bed12"))
 
 cluster_mount_point = "/Users/Ewann/cluster"
@@ -500,13 +501,17 @@ psi_by_gene |>
   labs(
     # fill = "Most correlated?",
     y = "Junction",
-    x = "Mean PSI") +
+    x = "Mean PSI") 
   # theme(axis.text.x = element_text(angle = 90))
 
-  
+selective_gene = psi_by_gene |> 
+  filter(top == 1) |> 
+  # distinct(gene, .keep_all = TRUE) |> 
+  select(gene, junc)
 
 
 # write out the results
 write.csv(cor_df, "/Users/Ewann/splicing_comparison/results/nygc/cryptic_tdp_corr.csv", row.names = FALSE)
 write.csv(cor_gene, "/Users/Ewann/splicing_comparison/results/nygc/cryptic_tdp_corr_by_gene.csv", row.names = FALSE)
 write.csv(sig_cor_cortex, "/Users/Ewann/splicing_comparison/results/nygc/cortex_cryptic_corr.csv", row.names = FALSE)
+write.csv(selective_gene, "/Users/Ewann/splicing_comparison/results/nygc/most_corr_genes.csv", row.names = FALSE)
