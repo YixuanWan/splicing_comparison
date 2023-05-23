@@ -53,13 +53,158 @@ query_nygc = tmp[which(is_null == FALSE)] |> rbindlist()
 
 query_metatable = rbind(query_metatable, query_nygc)
 
+
+# sample-wise z-score calculation
+std_metatable = query_metatable |> 
+  filter(coverage > 2) |> 
+  filter(star.all_mapped_reads > 1e+6) |> 
+  mutate(rpm = coverage/star.all_mapped_reads*(1e+6)) |> 
+  # mutate(z_scores = scale(rpm, center = TRUE, scale = TRUE)) |>
+  mutate(plot_col = glue::glue("{gene}_{coords}")) |> 
+  pivot_wider(names_from = 'plot_col',
+              values_from = 'rpm',
+              values_fill = 0) |> 
+  unique() |> 
+  mutate(across(contains('chr'), ~ scale(.), .names = "{.col}_zscore")) |>
+  select(study_title,sample_title,experiment_acc,contains('zscore')) |> 
+  mutate(tdp_studies = (grepl("TDP", study_title, ignore.case = TRUE)) |
+           (grepl("TARDBP", sample_title, ignore.case = TRUE)) |
+           (grepl("TARDBP", study_title, ignore.case = TRUE)) |
+           (grepl("TDP", sample_title, ignore.case = TRUE))) 
+  
+
+
+
+sample_sum = std_metatable |> 
+  melt(id.vars = c("study_title","sample_title","experiment_acc")) |>  
+  group_by(experiment_acc) |> 
+  summarize(sum_z = sum(value),sample_title,study_title) |> 
+  unique()
+
+# write out RDS objects
+saveRDS(query_metatable,"~/splicing_comparison/data/query_metatable.rds")
+saveRDS(std_metatable, "~/splicing_comparison/data/std_metatable.rds")
+saveRDS(sample_sum, "~/splicing_comparison/data/sample_sum.rds")
+
+query_metatable = readRDS("~/splicing_comparison/data/query_metatable.rds")
+std_metatable = readRDS("~/splicing_comparison/data/std_metatable.rds")
+sample_sum = readRDS("~/splicing_comparison/data/sample_sum.rds")
+
+sample_sum |> 
+  mutate(tdp_studies = (grepl("TDP", study_title, ignore.case = TRUE)) | 
+           (grepl("TARDBP", sample_title, ignore.case = TRUE)) |
+           (grepl("TARDBP", study_title, ignore.case = TRUE)) |
+           (grepl("TDP", sample_title, ignore.case = TRUE))) |> 
+  ggplot(aes(x = sum_z,
+             fill = tdp_studies)) + 
+  geom_density(alpha = 0.3) + 
+  scale_x_continuous(trans = scales::pseudo_log_trans()) +
+  theme_minimal()
+
+
+std_cluster = std_metatable |> select(contains("zscore")) 
+meanZ = std_cluster |> rowMeans()
+std_filtered = std_cluster[which(meanZ > -1),]
+
+# UMAP
+std_umap = umap::umap(std_cluster)
+
+std_umap$layout |> 
+  as.data.frame() |> 
+  cbind(std_metatable) |> 
+  ggplot(aes(x = V1, y = V2, colour = tdp_studies)) +
+  geom_point() +
+  theme_minimal()
+
+# kmeans clustering - decide the number of clusters
+
+k <- 2:10
+
+# silhouette scores
+avg_sil = purrr::map(k, function(k){
+  km = stats::kmeans(std_cluster, centers = k, nstart = 25)
+  ss = cluster::silhouette(km$cluster, dist(std_cluster))
+  mean(ss[, 3])
+})
+
+plot(k, type='b', avg_sil, 
+     xlab='Number of clusters', 
+     ylab='Average Silhouette Scores', 
+     frame=FALSE) 
+
+
+# clustering - actual clustering
+kmeans = kmeans(std_cluster, 2)
+
+kmeans_std = data.frame(kmean = rowMeans(std_cluster), cluster = kmeans$cluster)
+
+
+# plot the results with ggplot2
+pca = prcomp(std_cluster, center = TRUE)
+pc_std = data.frame(PC1 = pca$x[,1], PC2 = pca$x[,2])
+
+kmeans_std_plot = cbind(kmeans_std, pc_std, std_cluster)
+kmeans_std_plot$cluster <- factor(kmeans_std_plot$cluster)
+kmeans_std_plot |> 
+  ggplot(aes(x = PC1, y = PC2)) +
+  geom_point(aes(
+    # fill = mean,
+    # shape = cluster,
+    colour = cluster), 
+    # colour = "grey21",
+    size = 0.3) +
+  labs(title = "K-Means clustering of z-scores",
+       x = "PC1",
+       y = 'PC2',
+       colour =
+         #   "average PSI",
+         # shape = 
+         "Cluster") +
+  # scale_x_continuous(trans = scales::pseudo_log_trans(sigma = 1, base = 2)) +
+  # scale_y_continuous(trans = scales::pseudo_log_trans(sigma = 1, base = 2)) +
+  # scale_fill_gradient(
+  #   high = "turquoise",
+  #   low = "salmon",
+  #   space = "Lab",
+  #   guide = "colourbar",
+  #   aesthetics = "fill") +
+  # scale_shape_manual(values = c(21:25)) +
+  theme_minimal()
+
+# clustering with DBSCAN
+dbscan_std = dbscan::dbscan(std_cluster, eps = 1, minPts = 50)
+dbscan_std_plot = data.frame(rowMeans(std_cluster), cluster = dbscan_std$cluster)
+dbscan_std_plot$cluster = factor (dbscan_std_plot$cluster)
+
+dbscan_std_plot |> 
+  cbind(pc_std) |> 
+  cbind(std_metatable) |> 
+  ggplot(aes(x = PC1, y = PC2)) +
+  geom_point(aes(colour = tdp_studies), size = 0.5) +
+  labs(title = "DBSCAN clustering of zscores",
+       x = "PC1",
+       y = 'PC2',
+       colour = "TDP studies?") +
+  scale_x_continuous(trans = scales::pseudo_log_trans(sigma = 0.01, base = 2)) +
+  scale_y_continuous(trans = scales::pseudo_log_trans(sigma = 0.1, base = 2)) +
+  scale_color_manual(values = c("grey80", "orange")) +
+  theme_minimal()
+
+# DBSCAN + UMAP
+dbscan_std_plot |> 
+  cbind(std_metatable) |> 
+  cbind(as.data.table(std_umap$layout)) |> 
+  ggplot(aes(x = V1, y = V2, colour = cluster)) +
+  geom_point() +
+  theme_minimal()
+
 # summarise the number of studies containing TDP43
 tdp_studies = query_metatable |> 
   filter(coverage > 2) |> 
   filter((grepl("TDP", study_title, ignore.case = TRUE)) | 
-         (grepl("TARDBP", study_title, ignore.case = TRUE)) | 
-         (grepl("TARDBP", sample_title, ignore.case = TRUE)) |
-         (grepl("TDP", study_title, ignore.case = TRUE))) |> 
+           (grepl("TARDBP", study_title, ignore.case = TRUE)) | 
+           (grepl("TARDBP", sample_title, ignore.case = TRUE)) |
+           (grepl("TDP", study_title, ignore.case = TRUE))) |> 
   group_by(coords) |> 
   distinct(study_title, .keep_all = TRUE) |> 
   summarise(n_tdp_studies = n(), mean_coverage_tdp = mean(coverage))
@@ -70,15 +215,17 @@ snapcount_metalist = left_join(snapcount_metalist, tdp_studies, by = c("snapcoun
 non_tdp_studies = query_metatable |> 
   filter(coverage > 2) |> 
   filter((!grepl("TDP", study_title, ignore.case = TRUE)) | 
-         (!grepl("TARDBP", sample_title, ignore.case = TRUE)) |
-         (!grepl("TARDBP", study_title, ignore.case = TRUE)) |
-         (!grepl("TDP", sample_title, ignore.case = TRUE))) |> 
-
+           (!grepl("TARDBP", sample_title, ignore.case = TRUE)) |
+           (!grepl("TARDBP", study_title, ignore.case = TRUE)) |
+           (!grepl("TDP", sample_title, ignore.case = TRUE))) |> 
+  
   group_by(coords) |> 
   distinct(study_title, .keep_all = TRUE) |> 
   summarise(n_non_tdp_studies = n(), mean_coverage_non_tdp = mean(coverage))
 
 snapcount_metalist = left_join(snapcount_metalist, non_tdp_studies, by = c("snapcount_input" = "coords"))
+
+
 
 
 # summarise RPM for TDP and non-TDP studies
@@ -104,93 +251,6 @@ non_tdp_rpm = query_metatable |>
   distinct(study_title, .keep_all = TRUE) |> summarise(mean_rpm_non_tdp = mean(coverage)/mean(star.all_mapped_reads)*(10^6)) |>
   mutate(z_score_non_tdp = (mean_rpm_non_tdp - median(mean_rpm_non_tdp))/sd(mean_rpm_non_tdp))
 snapcount_metalist = left_join(snapcount_metalist, non_tdp_rpm, by = c("snapcount_input" = "coords"))
-
-
-
-# sample-wise z-score calculation
-std_metatable = query_metatable |> 
-  filter(coverage > 2) |> 
-  filter(star.all_mapped_reads > 1e+6) |> 
-  mutate(rpm = coverage/star.all_mapped_reads*(1e+6)) |> 
-  mutate(z_scores = scale(rpm, center = TRUE, scale = TRUE)) |> 
-  mutate(tdp_studies = (grepl("TDP", study_title, ignore.case = TRUE)) | 
-           (grepl("TARDBP", sample_title, ignore.case = TRUE)) |
-           (grepl("TARDBP", study_title, ignore.case = TRUE)) |
-           (grepl("TDP", sample_title, ignore.case = TRUE)))
-
-
-
-
-
-std_cluster = std_metatable |> 
-  select(sample_id, z_scores) 
-
-# UMAP
-std_umap = umap::umap(std_cluster)
-
-std_umap$layout |> 
-  as.data.frame() |>   
-  cbind(std_metatable, kmeans_std) |> 
-  ggplot(aes(x = V1, y = V2, colour = factor(cluster))) +
-  geom_point() +
-  theme_minimal()
-
-# kmeans clustering - decide the number of clusters
-
-k <- 2:10
-
-# silhouette scores
-avg_sil = purrr::map(k, function(k){
-  km = kmeans(std_cluster, centers = k, nstart = 25)
-  ss = silhouette(km$cluster, dist(std_cluster))
-  mean(ss[, 3])
-})
-plot(k, type='b', avg_sil, 
-     xlab='Number of clusters', 
-     ylab='Average Silhouette Scores', 
-     frame=FALSE) 
-
-
-# clustering - actual clustering
-kmeans = kmeans(std_cluster, 8)
-
-kmeans_std = data.frame(kmean = rowMeans(std_cluster), cluster = kmeans$cluster)
-
-
-# plot the results with ggplot2
-pca = prcomp(std_cluster, center = TRUE)
-pc_std = data.frame(PC1 = pca$x[,1], PC2 = pca$x[,2])
-
-kmeans_std_plot = cbind(kmeans_std, pc_std, std_metatable)
-kmeans_std_plot$cluster <- factor(kmeans_std_plot$cluster)
-kmeans_std_plot |> 
-  ggplot(aes(x = PC1, y = PC2)) +
-  geom_point(aes(
-    # fill = mean,
-    # shape = cluster,
-    colour = cluster), 
-    # colour = "grey21",
-    size = 2) +
-  labs(title = "K-Means clustering of z-scores",
-       x = "PC1",
-       y = 'PC2',
-       colour =
-         #   "average PSI",
-         # shape = 
-         "Cluster") +
-  # scale_x_continuous(trans = scales::pseudo_log_trans(sigma = 1, base = 2)) +
-  # scale_y_continuous(trans = scales::pseudo_log_trans(sigma = 1, base = 2)) +
-  # scale_fill_gradient(
-  #   high = "turquoise",
-  #   low = "salmon",
-  #   space = "Lab",
-  #   guide = "colourbar",
-  #   aesthetics = "fill") +
-  # scale_shape_manual(values = c(21:25)) +
-  theme_minimal()
-
-
-
 
 # ============ USELESS CODES (FOR NOW)==================
 
