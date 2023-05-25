@@ -9,37 +9,67 @@ cryptics_inKD = fread("/Users/Ewann/splicing_comparison/data/nygc/frequently_obs
 cryptics_nygc = fread("/Users/Ewann/splicing_comparison/results/nygc/most_corr_genes.csv")
 
 early_cryptics_snapcount = early_cryptics |> 
-  select(gene_id, snapcount_input, strand) 
+  dplyr::select(gene_id, snapcount_input, strand) 
 
 nygc_snapcount = data.table(str_split_fixed(cryptics_nygc$junc, "[_:-]",4)) |> 
   mutate(start = as.numeric(V3) + 1, end = as.numeric(V4) -1) |> 
   mutate(snapcount_input = paste0(V2, ":", start, "-", end)) |> 
-  select(snapcount_input) |> 
+  dplyr::select(snapcount_input) |> 
   cbind(cryptics_nygc) |> 
   mutate(gene_id = gene, strand = "-", .keep = "unused")|> 
-  select(gene_id, snapcount_input, strand)
+  dplyr::select(gene_id, snapcount_input, strand)
 
 inKD_snapcount = data.table(str_split_fixed(cryptics_inKD$paste_into_igv_junction, "[:-]",3)) |> 
   mutate(start = as.numeric(V2) + 1, end = as.numeric(V3) -1) |> 
   mutate(snapcount_input = paste0(V1, ":", start, "-", end)) |> 
-  select(snapcount_input) |> 
+  dplyr::select(snapcount_input) |> 
   cbind(cryptics_inKD) |> 
   mutate(gene_id = gene, .keep = "unused") |> 
-  select(gene_id, snapcount_input, strand) 
+  dplyr::select(gene_id, snapcount_input, strand) 
 
 snapcount_metalist = rbind(early_cryptics_snapcount, nygc_snapcount, inKD_snapcount) |> unique()
 
 
+
+
+# calculate PSIs
+ints = intronsByTranscript(TxDb.Hsapiens.UCSC.hg38.knownGene::TxDb.Hsapiens.UCSC.hg38.knownGene) |> makeGRangesFromDataFrame() |> unique() 
+gr_metalist = snapcount_metalist |> 
+  filter(gene_id != "KCNQ2") |>   
+  data.table(str_split_fixed(gr_metalist$snapcount_input, "[:-]",3)) |> 
+  dplyr::select(-snapcount_input) |> 
+  makeGRangesFromDataFrame(seqnames.field = "V1", start.field = "V2", end.field = "V3", strand.field = "strand", keep.extra.columns = TRUE)
+
+two_junc = subsetByOverlaps(ints, gr_metalist, type = "any", ignore.strand = TRUE) |> 
+  annotatr::annotate_regions(annotation = gr_metalist) |> 
+  as.data.table() |> 
+  mutate(excl = glue::glue("{seqnames}:{start}-{end}"), 
+         incl = glue::glue("{annot.seqnames}:{annot.start}-{annot.end}")) |> 
+  dplyr::select(excl, strand, incl, annot.strand, annot.gene_id)
+  
+excl = two_junc |> dplyr::select(excl, strand) |> separate(excl, c("seqname", "start", "end"))
+incl = two_junc |> dplyr::select(incl, annot.strand) |> separate(incl, c("seqname", "start", "end"))
+
+rtracklayer::export(excl, "/Users/Ewann/splicing_comparison/data/cryptic_queries/cryptic_junction_inclusions.bed")
+rtracklayer::export(incl, "/Users/Ewann/splicing_comparison/data/cryptic_queries/cryptic_junction_exclusions.bed")
+
+
+tmp = list(data.table(matrix()))
+for (val in rownames(two_junc)){
+  id = as.numeric(val)
+  tmp[[id]] = combine_two_junctions(inc1 = two_junc[id]$incl,
+                                    excl = two_junc[id]$excl,
+                                    strand_code = two_junc[id]$annot.strand,
+                                    data_source = 'srav3h')} 
+
 # query for specific junctions
-  tmp = list(data.table(matrix(ncol = 8)))
-  for (val in rownames(nygc_revert)){
-    id = as.numeric(val)
-    tmp[[id]] = query_specific_junction_snapcount(data_source = "srav3h", 
-                                                  coords = nygc_revert[id]$snapcount_input, 
-                                                  strand_code = nygc_revert[id]$strand,
-                                                  gene_name = nygc_revert[id]$gene_id)}
-  
-  
+tmp = list(data.table(matrix(ncol = 8)))
+for (val in rownames(snapcount_metalist)){
+  id = as.numeric(val)
+  tmp[[id]] = query_specific_junction_snapcount(data_source = "srav3h", 
+                                                coords = snapcount_metalist[id]$snapcount_input, 
+                                                strand_code = snapcount_metalist[id]$strand,
+                                                gene_name = snapcount_metalist[id]$gene_id)}  
 
 # identify junctions not found in database - probably due to wrong strand_code provided 
 is_null = purrr::map(tmp, function(df){is.null(dim(df))}) 
@@ -59,36 +89,25 @@ std_metatable = query_metatable |>
   filter(coverage > 2) |> 
   filter(star.all_mapped_reads > 1e+6) |> 
   mutate(rpm = coverage/star.all_mapped_reads*(1e+6)) |> 
-  # mutate(z_scores = scale(rpm, center = TRUE, scale = TRUE)) |>
+  # filter(rpm > 1) |>
   mutate(plot_col = glue::glue("{gene}_{coords}")) |> 
   pivot_wider(names_from = 'plot_col',
               values_from = 'rpm',
               values_fill = 0) |> 
   unique() |> 
   mutate(across(contains('chr'), ~ scale(.), .names = "{.col}_zscore")) |>
-  select(study_title,sample_title,experiment_acc,contains('zscore')) |> 
-  mutate(tdp_studies = (grepl("TDP", study_title, ignore.case = TRUE)) |
+  dplyr::select(study_title,sample_title,experiment_acc,contains('zscore')) |> 
+  mutate(tdp_studies = (grepl("TDP", study_title, ignore.case = TRUE)) | 
            (grepl("TARDBP", sample_title, ignore.case = TRUE)) |
            (grepl("TARDBP", study_title, ignore.case = TRUE)) |
-           (grepl("TDP", sample_title, ignore.case = TRUE))) 
-  
+           (grepl("TDP", sample_title, ignore.case = TRUE)))
 
-
-
+# Identify non-tdp samples with high zscores
 sample_sum = std_metatable |> 
   melt(id.vars = c("study_title","sample_title","experiment_acc")) |>  
   group_by(experiment_acc) |> 
   summarize(sum_z = sum(value),sample_title,study_title) |> 
   unique()
-
-# write out RDS objects
-saveRDS(query_metatable,"~/splicing_comparison/data/query_metatable.rds")
-saveRDS(std_metatable, "~/splicing_comparison/data/std_metatable.rds")
-saveRDS(sample_sum, "~/splicing_comparison/data/sample_sum.rds")
-
-query_metatable = readRDS("~/splicing_comparison/data/query_metatable.rds")
-std_metatable = readRDS("~/splicing_comparison/data/std_metatable.rds")
-sample_sum = readRDS("~/splicing_comparison/data/sample_sum.rds")
 
 sample_sum |> 
   mutate(tdp_studies = (grepl("TDP", study_title, ignore.case = TRUE)) | 
@@ -101,20 +120,52 @@ sample_sum |>
   scale_x_continuous(trans = scales::pseudo_log_trans()) +
   theme_minimal()
 
+sample = "SRX1966109"
+tmp = std_metatable |> 
+  filter(experiment_acc == sample) |> 
+  pivot_longer(cols = contains("zscore"), names_to = "gene", values_to = "zscore", names_pattern = "(\\w+)_.*") 
 
-std_cluster = std_metatable |> select(contains("zscore")) 
-meanZ = std_cluster |> rowMeans()
-std_filtered = std_cluster[which(meanZ > -1),]
+tmp |> 
+  ggplot(aes(x = gene, y = zscore)) +
+  ggrepel::geom_text_repel(aes(label = gene), max.overlaps = 5, size = 3) +
+  geom_point() +
+  theme_minimal() +
+  labs(
+    title = unique(tmp$sample_title),
+    subtitle = ""
+  ) +
+  theme(
+    axis.text.x = element_blank()) 
+
+
+
+# write out RDS objects
+saveRDS(query_metatable,"~/splicing_comparison/data/cryptic_queries/query_metatable.rds")
+saveRDS(std_metatable, "~/splicing_comparison/data/cryptic_queries/std_metatable.rds")
+saveRDS(sample_sum, "~/splicing_comparison/data/cryptic_queries/sample_sum.rds")
+
+query_metatable = readRDS("~/splicing_comparison/data/cryptic_queries/query_metatable.rds")
+std_metatable = readRDS("~/splicing_comparison/data/cryptic_queries/std_metatable.rds")
+sample_sum = readRDS("~/splicing_comparison/data/cryptic_queries/sample_sum.rds")
+
+
+# CLUSTERING
+std_cluster = std_metatable |> dplyr::select(contains("zscore")) 
 
 # UMAP
 std_umap = umap::umap(std_cluster)
+# saveRDS(std_umap,"~/splicing_comparison/data/std_umap.rds")
+# std_umap = readRDS("~/splicing_comparison/data/std_umap.rds")
 
 std_umap$layout |> 
   as.data.frame() |> 
-  cbind(std_metatable) |> 
-  ggplot(aes(x = V1, y = V2, colour = tdp_studies)) +
+  cbind(std_metatable) |>
+  left_join(sample_sum, by = ("experiment_acc")) |>
+  ggplot(aes(x = V1, y = V2)) +
   geom_point() +
-  theme_minimal()
+  theme_minimal() +
+  theme(legend.position = "none")
+  # scale_color_gradient(low = "turquoise", high = "salmon")
 
 # kmeans clustering - decide the number of clusters
 
@@ -180,8 +231,8 @@ dbscan_std_plot |>
   cbind(pc_std) |> 
   cbind(std_metatable) |> 
   ggplot(aes(x = PC1, y = PC2)) +
-  geom_point(aes(colour = tdp_studies), size = 0.5) +
-  labs(title = "DBSCAN clustering of zscores",
+  geom_point(aes(colour = tdp_studies)) +
+  labs(
        x = "PC1",
        y = 'PC2',
        colour = "TDP studies?") +
@@ -290,6 +341,6 @@ cryptic_map = cryptic_map |> replace(is.na(tmp), 0)
 pheatmap(cryptic_map, cluster_rows = TRUE, cluster_cols = FALSE, show_rownames = TRUE, show_colnames = FALSE, 
          fontsize = 8, treeheight_row = 60, colorRampPalette(c("azure", "orange"))(10))
 
-fwrite(snapcount_metalist, "/Users/Ewann/splicing_comparison/data/selective_cryptics_sra.csv")
+fwrite(snapcount_metalist, "/Users/Ewann/splicing_comparison/data/cryptic_queries/selective_cryptics_sra.csv")
 
 
