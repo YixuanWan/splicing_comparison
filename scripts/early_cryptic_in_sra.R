@@ -27,7 +27,7 @@ inKD_snapcount = data.table(str_split_fixed(cryptics_inKD$paste_into_igv_junctio
   mutate(gene_id = gene, .keep = "unused") |> 
   dplyr::select(gene_id, snapcount_input, strand) 
 
-snapcount_metalist = rbind(early_cryptics_snapcount, nygc_snapcount, inKD_snapcount) |> unique()
+snapcount_metalist = rbind(early_cryptics_snapcount, nygc_snapcount, inKD_snapcount) |> distinct(snapcount_input, .keep_all = TRUE)
 
 
 
@@ -46,12 +46,19 @@ two_junc = subsetByOverlaps(ints, gr_metalist, type = "any", ignore.strand = TRU
   mutate(excl = glue::glue("{seqnames}:{start}-{end}"), 
          incl = glue::glue("{annot.seqnames}:{annot.start}-{annot.end}")) |> 
   dplyr::select(excl, strand, incl, annot.strand, annot.gene_id)
+
+two_junc = subsetByOverlaps(ints, gr_metalist, type = "any") |> 
+  annotatr::annotate_regions(annotation = gr_metalist) |> 
+  as.data.table() |> 
+  mutate(excl = glue::glue("{seqnames}:{start}-{end}"), 
+         incl = glue::glue("{annot.seqnames}:{annot.start}-{annot.end}")) |> 
+  dplyr::select(excl, strand, incl, annot.strand, annot.gene_id)
   
 excl = two_junc |> dplyr::select(excl, strand) |> separate(excl, c("seqname", "start", "end"))
 incl = two_junc |> dplyr::select(incl, annot.strand) |> separate(incl, c("seqname", "start", "end"))
 
-rtracklayer::export(excl, "/Users/Ewann/splicing_comparison/data/cryptic_queries/cryptic_junction_inclusions.bed")
-rtracklayer::export(incl, "/Users/Ewann/splicing_comparison/data/cryptic_queries/cryptic_junction_exclusions.bed")
+rtracklayer::export(incl, "/Users/Ewann/splicing_comparison/data/cryptic_queries/cryptic_junction_inclusions.bed")
+rtracklayer::export(excl, "/Users/Ewann/splicing_comparison/data/cryptic_queries/cryptic_junction_exclusions.bed")
 
 
 tmp = list(data.table(matrix()))
@@ -62,6 +69,25 @@ for (val in rownames(two_junc)){
                                     strand_code = two_junc[id]$annot.strand,
                                     data_source = 'srav3h')} 
 
+is_null = purrr::map(tmp, function(df){is.null(dim(df))}) 
+psi_metatable = tmp[which(is_null == FALSE)] |> rbindlist() |> filter(!is.na(inclusion_count1)) |> unique()
+
+psi_annotable = psi_metatable |> 
+  # filter(inclusion_count1 > 2) |> 
+  # filter(star.all_mapped_reads > 1e+6) |> 
+  mutate(junc = glue::glue("{chromosome}:{start}-{end}")) |> 
+  right_join((two_junc |> dplyr::select(incl, annot.gene_id)), by = c("junc" = "incl")) |> 
+  arrange(-psi) |> 
+  unique()
+
+# calculating sum_psi for tdp and non_tdp studies
+sum_psi = psi_annotable |> 
+  group_by(experiment_acc) |> 
+  summarise(sum_psi = sum(psi), study_title, sample_title) |> unique()
+  
+  
+  
+
 # query for specific junctions
 tmp = list(data.table(matrix(ncol = 8)))
 for (val in rownames(snapcount_metalist)){
@@ -70,18 +96,6 @@ for (val in rownames(snapcount_metalist)){
                                                 coords = snapcount_metalist[id]$snapcount_input, 
                                                 strand_code = snapcount_metalist[id]$strand,
                                                 gene_name = snapcount_metalist[id]$gene_id)}  
-
-# identify junctions not found in database - probably due to wrong strand_code provided 
-is_null = purrr::map(tmp, function(df){is.null(dim(df))}) 
-query_metatable = tmp[which(is_null == FALSE)] |> rbindlist()
-
-# rerun the query with strand '-'
-nygc_revert = nygc_snapcount[which(is_null == TRUE) - 24] |> mutate(strand = "-")
-
-is_null = purrr::map(tmp, function(df){is.null(dim(df))}) 
-query_nygc = tmp[which(is_null == FALSE)] |> rbindlist()
-
-query_metatable = rbind(query_metatable, query_nygc)
 
 
 # sample-wise z-score calculation

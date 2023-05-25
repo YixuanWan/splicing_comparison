@@ -2,72 +2,41 @@ library(dplyr)
 library(tidyr)
 library(data.table)
 library(ggplot2)
-library(stringr)
 library(GenomicRanges)
-library(rtracklayer)
 library(pheatmap)
 library(cluster)
 library(dbscan)
 library(ggcorrplot)
-library(ggraph)
 
 
 # load in dataset
 nygc = arrow::read_parquet("/Users/Ewann/splicing_comparison/data/nygc/selective_cryptic_psi_in_nygc.parquet")
-all_nygc = arrow::read_parquet("/Users/Ewann/splicing_comparison/data/nygc/all_psi_in_nygc.parquet")
-gencode = as.data.table(import.bed("/Users/Ewann/splicing_comparison/data/GRCh38/gencode.v42.annotation.bed12"))
+all_nygc = fread("/Users/Ewann/splicing_comparison/data/nygc/all_nygc_junctions.csv")
 
-cluster_mount_point = "/Users/Ewann/cluster"
-tx2gene = file.path(cluster_mount_point,"vyplab_reference_genomes/annotation/human/GRCh38/gencode.v42.tx2gene.csv")
-tx2gene <- fread(tx2gene,header=FALSE)
-colnames(tx2gene) = c("TXNAME", "GENEID")
 
-# generate a seq2gene table
-gencodes = gencode |> 
-  left_join(tx2gene, by = c("name" = "TXNAME")) |> 
-  left_join(gentab, by = c("GENEID" = "Gene.ID")) |> 
-  select(seqnames, start, end, Gene.Symbol) |> 
-  mutate(gene = Gene.Symbol, .keep = "unused") |> 
-  GRanges() |> unique()
 
 # select tdp-pathology patients, get rid of other columns
+annotation = annotatr::build_annotations(genome = "hg38", annotations = "hg38_basicgenes" )
+annotation = annotation[annotation$type %in% c("hg38_genes_5UTRs", "hg38_genes_exons", "hg38_genes_introns")]
 nygc_tdp = nygc |>
   filter(tdp_path == "path") |>
-  filter(disease_tissue == TRUE) |> 
-  select(paste_into_igv_junction, psi, tissue_clean, disease) 
-
-# create a GRange list for psi_tdp
-gene_tdp = data.frame(str_split_fixed(nygc_tdp$paste_into_igv_junction, "[:-]", 3)) 
-names(gene_tdp) <- c("seqnames", "start", "end")
-psi_tdp = cbind(nygc_tdp, gene_tdp) |> 
-  select(-paste_into_igv_junction) |> 
-  GRanges()
-
-# get gene names for psi_tdp
-overlaps_gene_tdp = findOverlaps(psi_tdp, gencodes)
-uniqueHits = overlaps_gene_tdp |> 
-  as.data.frame() |> 
-  distinct(queryHits, .keep_all = TRUE)
-overlaps_tdp = psi_tdp[uniqueHits$queryHits]
-mcols(overlaps_tdp)$gene = mcols(gencodes[uniqueHits$subjectHits])$gene
-
-psi_gene_tdp = overlaps_tdp |> 
+  filter(disease_tissue == TRUE) |>
+  dplyr::select(paste_into_igv_junction,strand) |> 
+  unique() |> 
+  separate(paste_into_igv_junction, c("seqname", "start", "end")) |> 
+  makeGRangesFromDataFrame(keep.extra.columns = TRUE) |> 
+  annotatr::annotate_regions(annotations = annotation) |> 
   as.data.table() |> 
-  mutate(junction = paste0(seqnames, ":", start, "-", end), .keep = "unused") |> 
-  select(-width, -strand)
+  mutate(junc = glue::glue("{seqnames}:{start}-{end}")) |> 
+  distinct(junc, .keep_all = TRUE) 
 
-# make psi_wide for correlation 
-psi_tdp_wide = psi_gene_tdp|> 
-  select(gene, junction, psi) |> 
-  pivot_wider(names_from = c(gene, junction), 
-              values_from = psi,
-              values_fn = list) |> 
-  purrr::map(as.data.table)
 
-psi_wide = do.call(cbind, psi_tdp_wide) |> setnames(names(psi_tdp_wide))
 
-# make psi_long for clustering - cortex
-psi_long = t(psi_wide) |> as.data.frame(row.names = colnames(psi_wide)) 
+
+# make psi_wide for correlation   
+nygc_tdp |> 
+  group_by(junc, gene) |> 
+  pivot_wider(names_from = c("junc", "gene"), values_from = "psi")
 
 # use UMAP to plot the results
 psi_long_umap = umap(psi_long)
@@ -304,12 +273,6 @@ stats::as.dendrogram(hclust_kmeans) |>
 
 
 
-# perform correlation
-cor_matrix = psi_wide |> cor() |> round(3)
-p_cor_matrix = psi_wide |> cor_pmat() 
-padj_cor_matrix = p.adjust(p_cor_matrix, method = "BY", n = length(p_cor_matrix))  |> 
-  matrix(ncol = dim(p_cor_matrix)[1], dimnames = dimnames(cor_matrix))
-
 
 # plot correlation matrix with p-values
 ggcorrplot(cor_matrix,
@@ -514,4 +477,5 @@ selective_gene = psi_by_gene |>
 write.csv(cor_df, "/Users/Ewann/splicing_comparison/results/nygc/cryptic_tdp_corr.csv", row.names = FALSE)
 write.csv(cor_gene, "/Users/Ewann/splicing_comparison/results/nygc/cryptic_tdp_corr_by_gene.csv", row.names = FALSE)
 write.csv(sig_cor_cortex, "/Users/Ewann/splicing_comparison/results/nygc/cortex_cryptic_corr.csv", row.names = FALSE)
+
 write.csv(selective_gene, "/Users/Ewann/splicing_comparison/results/nygc/most_corr_genes.csv", row.names = FALSE)
