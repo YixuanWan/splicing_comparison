@@ -10,19 +10,19 @@ tdp_deseq <- function(file){
     if("symbol" %in% colnames(file)){
       df = file |> 
         filter(symbol == "TARDBP") |> 
-        select(log2fold_change, padj, deseq2_table_name)
+        dplyr::select(log2fold_change, padj, deseq2_table_name)
     }
     else{
       df = file |> 
         filter(gene_name == "TARDBP") |> 
-        select(log2fold_change, padj, deseq2_table_name) 
+        dplyr::select(log2fold_change, padj, deseq2_table_name) 
     }
     return(df)
 }
 
 # loading the tables
 splicingTable = read.csv("/Users/Ewann/splicing_comparison/data/majiq/splicing_full_delta_psi_tables.csv")
-metatable = read.csv("/Users/Ewann/splicing_comparison/samplesheet/tdp_experiments_updated - tdp_experiments_updated.csv")
+metatable = read.csv("/Users/Ewann/splicing_comparison/samplesheet/tdp_experiments_updated-tdp_experiments_updated.csv")
 
 # work out the number of cryptic events
 crypticTable = splicingTable |> 
@@ -51,9 +51,9 @@ fc_tdp = purrr::map2(estimate_files, experiment_names, ~cbind(.x, deseq2_table_n
 # add tdp43 deseq2 results to the metadata
 fc_tdp = purrr::map(fc_tdp, tdp_deseq)  
 fc_tdp = data.table::rbindlist(fc_tdp)
-metadata = metadata |> 
+metatable = metatable |> 
   select(-padj, -log2fold_change_tdp) |> 
-  mutate(deseq2_table_name = fc_tdp$deseq2_table_name, .keep = 'unused') |> 
+  mutate(deseq2_table_name = fc_tdp$deseq2_table_name) |> 
   left_join(fc_tdp)
 
 

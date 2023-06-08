@@ -1,27 +1,27 @@
-comparison,n_cryptic_junctions,experiment,paper,controls,knockdowns,read.length,cell.type,average.library.size,log2fold_change_tdp,padj,deseq2_table_name,datafolder
-controlcontrol-controltdp43kd,825,CHX SH-SY-5Y,unpublished,4,4,100,SH-SY5Y,111065369.3,-1.988566414,6.07E-13,appocher.sk-n-dz.DESEQ2_results,NA
-controltdp43kd-cycloheximidetdp43kd,3679,CHX SH-SY-5Y,unpublished,4,4,100,SH-SY5Y,107459035.8,-1.639857798,1.07E-111,brown.ipscCortical_neuron.DESEQ2_results,NA
-cycloheximidecontrol-cycloheximidetdp43kd,1219,CHX SH-SY-5Y,unpublished,4,4,100,SH-SY5Y,110717361.4,-1.296299535,6.53E-11,brown.sh-sy-5y.DESEQ2_results,NA
-nodox-dox00125,305,SH-SY-5Y curve,unpublished,3,3,100,SH-SY5Y,120423948,-2.588178312,5.83E-128,brown.sk-n-dz.DESEQ2_results,NA
-nodox-dox00187,421,SH-SY-5Y curve,unpublished,3,3,100,SH-SY5Y,119423378.3,-0.090480807,0.189170844,Cycloheximide_Control_Control_Control.DESEQ2_results,NA
-nodox-dox0021,476,SH-SY-5Y curve,unpublished,3,3,100,SH-SY5Y,119898140.5,0.347962423,0.019617333,Cycloheximide_TDP43KD_Control_TDP43KD.DESEQ2_results,NA
-nodox-dox0025,543,SH-SY-5Y curve,unpublished,3,3,100,SH-SY5Y,121244959.7,-3.154508846,0,Cycloheximide_TDP43KD_Cycloheximide_Control.DESEQ2_results,NA
-nodox-dox0075,933,SH-SY-5Y curve,unpublished,3,3,100,SH-SY5Y,118948195.2,0.013311896,0.982965727,dox_0125_no_dox.DESEQ2_results,NA
-control-tdp43kd002,197,SK-N-DZ curve,unpublished,3,3,150,SK-N-DZ,149639338.2,-0.945038663,3.17E-59,dox_0187_no_dox.DESEQ2_results,NA
-control-tdp43kd003,264,SK-N-DZ curve,unpublished,3,3,150,SK-N-DZ,143928543,-1.214179515,2.30E-88,dox_021_no_dox.DESEQ2_results,NA
-control-tdp43kd004,369,SK-N-DZ curve,unpublished,3,3,150,SK-N-DZ,156359018,-2.114461188,1.33E-178,dox_025_no_dox.DESEQ2_results,NA
-control-tdp43kd005,433,SK-N-DZ curve,unpublished,3,3,150,SK-N-DZ,146569528.3,-3.941817827,0,dox_075_no_dox.DESEQ2_results,NA
-control-tdp43kd0075,465,SK-N-DZ curve,unpublished,3,3,150,SK-N-DZ,155864320.7,-3.275267876,1.95E-110,humphrey_i3cortical|control.DESEQ2_results,NA
-control-tdp43kd01,566,SK-N-DZ curve,unpublished,3,3,150,SK-N-DZ,149782862.5,-1.340180502,3.10E-48,klim.ipscMotor_neuron.DESEQ2_results,NA
-control-tdp43kd1,586,SK-N-DZ curve,unpublished,3,3,150,SK-N-DZ,147239547.3,-1.931236822,1.13E-77,melamed.sh-sy-5y.DESEQ2_results,NA
-ctrlctrl-tdp43ctrl,543,UPF1 i3 Cortical,unpublished,4,4,150,i3 cortical,151330270.3,-1.944207924,0,results_deseq_ctrlctrl_ctrlTDP43,NA
-ctrlupf1-tdp43upf1,605,UPF1 i3 Cortical,unpublished,4,4,150,i3 cortical,134319557.3,0.171559551,0.003458124,results_deseq_ctrlTDP43_UPF1TDP43,NA
-tdp43ctrl-tdp43upf1,355,UPF1 i3 Cortical,unpublished,4,4,150,i3 cortical,133973023.4,-1.748571644,0,results_deseq_UPF1ctrl_UPF1TDP43,NA
-controlappocherskndz-tdp43kdappocherskndz,379,appocher.sk-n-dz,https://doi.org/10.1093/nar/gkx477,3,3,100,SK-N-DZ,22317199,-0.517436327,2.48E-16,results_table_dz_curves_002,NA
-controlbrowncorticalneuron-tdp43kdbrowncorticalneuron,619,brown.ipscCortical_neuron,https://doi.org/10.1038/s41586-022-04436-3,4,4,75,i3 cortical,119476285,-1.070463126,8.00E-105,results_table_dz_curves_003,NA
-controlbrownshsy5y-tdp43kdbrownshsy5y,992,brown.sh-sy-5y,https://doi.org/10.1038/s41586-022-04436-3,3,3,149,SH-SY5Y,137526902,-1.736115228,0,results_table_dz_curves_004,NA
-controlbrownskndz-tdp43kdbrownskndz,743,brown.sk-n-dz,https://doi.org/10.1038/s41586-022-04436-3,3,4,149,SK-N-DZ,136053813,-2.278060194,0,results_table_dz_curves_005,NA
-controlhumphreycorticalneuron-tdp43kdhumphreycorticalneuron,811,humphrey_i3cortical,unpublished,6,6,151,i3 cortical,95981221,-2.927257168,0,results_table_dz_curves_0075,NA
-controlklimmotorneuron-tdp43kdklimmotorneuron,72,klim.ipscMotor_neuron,10.1038/s41593-018-0300-4,12,6,75,iPSC MN,49420528,-3.309767587,0,results_table_dz_curves_01,NA
-controlmelamedshsy5y-tdp43kdmelamedshsy5y,195,melamed.sh-sy-5y,10.1038/s41593-018-0293-z,3,3,50,SH-SY5Y,60037818,-3.987494128,0,results_table_dz_curves_1,NA
-controlseddighicorticalneuron-tdp43kdseddighicorticalneuron,680,seddighi.ipscCortical_neuron,https://doi.org/10.1101/2023.01.23.525149,12,6,145,i3 cortical,206574027,-2.03873657,0,seddighi.ipscCortical_neuron.DESEQ2_results,NA
+comparison,n_cryptic_junctions,experiment,paper,controls,knockdowns,read.length,cell.type,average.library.size,log2fold_change_tdp,padj,deseq2_table_name,datafolder,,,,
+controlcontrol-controltdp43kd,825,CHX SH-SY-5Y,unpublished,4,4,100,SH-SY5Y,111065369,-3.5855481,7.62E-242,Control_TDP43KD|Control_Control.DESEQ2_results,NA,,,,
+controltdp43kd-cycloheximidetdp43kd,3679,CHX SH-SY-5Y,unpublished,4,4,100,SH-SY5Y,107459036,0.347962423,0.019617333,Cycloheximide_TDP43KD_Control_TDP43KD.DESEQ2_results,NA,,,,
+cycloheximidecontrol-cycloheximidetdp43kd,1219,CHX SH-SY-5Y,unpublished,4,4,100,SH-SY5Y,110717361,-3.154508846,0,Cycloheximide_TDP43KD_Cycloheximide_Control.DESEQ2_results,NA,,,,
+nodox-dox00125,305,SH-SY-5Y curve,unpublished,3,3,100,SH-SY5Y,120423948,0.013311896,0.982965727,dox_0125_no_dox.DESEQ2_results,NA,,,,
+nodox-dox00187,421,SH-SY-5Y curve,unpublished,3,3,100,SH-SY5Y,119423378,-0.945038663,3.17E-59,dox_0187_no_dox.DESEQ2_results,NA,,,0.189170844,Cycloheximide_Control_Control_Control.DESEQ2_results
+nodox-dox0021,476,SH-SY-5Y curve,unpublished,3,3,100,SH-SY5Y,119898140,-1.214179515,2.30E-88,dox_021_no_dox.DESEQ2_results,NA,,,,
+nodox-dox0025,543,SH-SY-5Y curve,unpublished,3,3,100,SH-SY5Y,121244960,-2.114461188,1.33E-178,dox_025_no_dox.DESEQ2_results,NA,,,,
+nodox-dox0075,933,SH-SY-5Y curve,unpublished,3,3,100,SH-SY5Y,118948195,-3.941817827,0,dox_075_no_dox.DESEQ2_results,NA,,,,
+control-tdp43kd002,197,SK-N-DZ curve,unpublished,3,3,150,SK-N-DZ,149639338,-0.517436327,2.48E-16,results_table_dz_curves_002,NA,,,,
+control-tdp43kd003,264,SK-N-DZ curve,unpublished,3,3,150,SK-N-DZ,143928543,-1.070463126,8.00E-105,results_table_dz_curves_003,NA,,,,
+control-tdp43kd004,369,SK-N-DZ curve,unpublished,3,3,150,SK-N-DZ,156359018,-1.736115228,0,results_table_dz_curves_004,NA,,,,
+control-tdp43kd005,433,SK-N-DZ curve,unpublished,3,3,150,SK-N-DZ,146569528,-2.278060194,0,results_table_dz_curves_005,NA,,,,
+control-tdp43kd0075,465,SK-N-DZ curve,unpublished,3,3,150,SK-N-DZ,155864321,-2.927257168,0,results_table_dz_curves_0075,NA,,,,
+control-tdp43kd01,566,SK-N-DZ curve,unpublished,3,3,150,SK-N-DZ,149782862,-3.309767587,0,results_table_dz_curves_01,NA,,,,
+control-tdp43kd1,586,SK-N-DZ curve,unpublished,3,3,150,SK-N-DZ,147239547,-3.987494128,0,results_table_dz_curves_1,NA,,,,
+ctrlctrl-tdp43ctrl,543,UPF1 i3 Cortical,unpublished,4,4,150,i3 cortical,151330270,-1.944207924,0,results_deseq_ctrlctrl_ctrlTDP43,NA,,,,
+ctrlupf1-tdp43upf1,605,UPF1 i3 Cortical,unpublished,4,4,150,i3 cortical,134319557,-1.748571644,0,results_deseq_UPF1ctrl_UPF1TDP43,NA,,,,
+tdp43ctrl-tdp43upf1,355,UPF1 i3 Cortical,unpublished,4,4,150,i3 cortical,133973023,0.171559551,0.003458124,results_deseq_ctrlTDP43_UPF1TDP43,NA,,,,
+controlappocherskndz-tdp43kdappocherskndz,379,appocher.sk-n-dz,https://doi.org/10.1093/nar/gkx477,3,3,100,SK-N-DZ,22317199,-1.988566414,6.07E-13,appocher.sk-n-dz.DESEQ2_results,NA,,,,
+controlbrowncorticalneuron-tdp43kdbrowncorticalneuron,619,brown.ipscCortical_neuron,https://doi.org/10.1038/s41586-022-04436-3,4,4,75,i3 cortical,119476285,-1.639857798,1.07E-111,brown.ipscCortical_neuron.DESEQ2_results,NA,,,,
+controlbrownshsy5y-tdp43kdbrownshsy5y,992,brown.sh-sy-5y,https://doi.org/10.1038/s41586-022-04436-3,3,3,149,SH-SY5Y,137526902,-1.296299535,6.53E-11,brown.sh-sy-5y.DESEQ2_results,NA,,,,
+controlbrownskndz-tdp43kdbrownskndz,743,brown.sk-n-dz,https://doi.org/10.1038/s41586-022-04436-3,3,4,149,SK-N-DZ,136053813,-2.588178312,5.83E-128,brown.sk-n-dz.DESEQ2_results,NA,,,,
+controlhumphreycorticalneuron-tdp43kdhumphreycorticalneuron,811,humphrey_i3cortical,unpublished,6,6,151,i3 cortical,95981221,-3.275267876,1.95E-110,humphrey_i3cortical|control.DESEQ2_results,NA,,,,
+controlklimmotorneuron-tdp43kdklimmotorneuron,72,klim.ipscMotor_neuron,10.1038/s41593-018-0300-4,12,6,75,iPSC MN,49420528,-1.340180502,3.10E-48,klim.ipscMotor_neuron.DESEQ2_results,NA,,,,
+controlmelamedshsy5y-tdp43kdmelamedshsy5y,195,melamed.sh-sy-5y,10.1038/s41593-018-0293-z,3,3,50,SH-SY5Y,60037818,-1.931236822,1.13E-77,melamed.sh-sy-5y.DESEQ2_results,NA,,,,
+controlseddighicorticalneuron-tdp43kdseddighicorticalneuron,680,seddighi.ipscCortical_neuron,https://doi.org/10.1101/2023.01.23.525149,12,6,145,i3 cortical,206574027,-2.03873657,0,seddighi.ipscCortical_neuron.DESEQ2_results,NA,,,,
