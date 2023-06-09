@@ -32,12 +32,13 @@ inKD_snapcount = data.table(str_split_fixed(cryptics_inKD$paste_into_igv_junctio
 
 snapcount_metalist = rbind(early_cryptics_snapcount, nygc_snapcount, inKD_snapcount) |> distinct(snapcount_input, .keep_all = TRUE)
 
-
-
+fwrite(snapcount_metalist, "~/splicing_comparison/data/snapcount_metalist.csv")
+snapcount_metalist = fread("~/splicing_comparison/data/cryptic_queries/snapcount_metalist.csv")
 
 # calculate PSIs
 ints = GenomicFeatures::intronsByTranscript(TxDb.Hsapiens.UCSC.hg38.knownGene::TxDb.Hsapiens.UCSC.hg38.knownGene) |> makeGRangesFromDataFrame() |> unique() 
 gr_metalist = snapcount_metalist |> 
+  filter(type %in% c("novel_donor", 'novel_acceptor')) |> 
   filter(gene_id != "KCNQ2")  |>   
   separate(snapcount_input, c("seqnames", "start", "end")) |> 
   makeGRangesFromDataFrame(keep.extra.columns = TRUE)
@@ -69,34 +70,89 @@ is_null = purrr::map(tmp, function(df){is.null(dim(df))})
 encode_metatable = tmp[which(is_null == FALSE)] |> rbindlist() |> filter(!is.na(psi)) |> unique()
 
 encode_psi = encode_metatable |> 
-  filter(inclusion_count1 > 2) |>
-  filter(junction_coverage > 1e+6) |>
-  filter(psi > 0.05) |> 
+  # filter(inclusion_count1 > 2) |>
+  # filter(junction_coverage > 1e+6) |>
+  # filter(psi > 0.05) |>
   mutate(junc = glue::glue("{chromosome}:{start}-{end}")) |> 
+  filter(junc %in% two_junc$excl) |> 
   filter(!(junc %in% two_junc[incl == excl]$excl)) |>
-  right_join((two_junc |> dplyr::select(excl, annot.gene_id)), by = c("junc" = "excl")) |> 
-  arrange(-psi) |> 
+  right_join((two_junc |> dplyr::select(excl, annot.gene_id, incl)), by = c("junc" = "excl")) |> 
+  filter(annot.gene_id != "ZNF420") |> 
   unique()
 
 saveRDS(encode_psi,"~/splicing_comparison/data/cryptic_queries/encode_psi.rds")
 sra_annotable = readRDS("~/splicing_comparison/data/cryptic_queries/srav3h_psi_annotable.rds")
 
 # calculating sum_psi for tdp and non_tdp studies
-sum_psi = sra_annotable |> 
-  group_by(experiment_acc) |> 
-  summarise(sum_psi = sum(psi), study_title, sample_title) |> 
+sum_psi_encode = encode_psi |> 
+  group_by(Experiment.accession) |> 
+  summarise(sum_psi = sum(psi), Experiment.target, Biosample.term.name) |> 
   unique() |> 
-  ungroup()
+  ungroup() |> 
+  mutate(tdp_studies = (grepl("TDP", Experiment.target, ignore.case = TRUE)) | 
+           (grepl("TARDBP", Experiment.target, ignore.case = TRUE)))
 
-sum_psi |> 
-  mutate(tdp_studies = (grepl("TDP", study_title, ignore.case = TRUE)) | 
-           (grepl("TARDBP", sample_title, ignore.case = TRUE)) |
-           (grepl("TARDBP", study_title, ignore.case = TRUE)) |
-           (grepl("TDP", sample_title, ignore.case = TRUE))) |> 
+encode_psi |> 
+  filter(Experiment.accession == "ENCSR927SLP") |> 
+  ggplot(aes(x = annot.gene_id, y = psi)) +
+  geom_point() +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_blank()
+    ) + 
+  ggrepel::geom_text_repel(aes(label = annot.gene_id), max.overlaps = 5, size = 3) +
+  labs(
+    title = "LIN28B",
+    subtitle = "Experiment: ENCSR927SLP"
+  )
+
+rbp_count_by_gene = encode_psi |> 
+  filter(Experiment.target != "") |> 
+  separate(Experiment.target, c("RBP", "species")) |> 
+  filter(RBP != "Non") |> 
+  group_by(RBP, incl) |> 
+  summarise(average_count = mean(inclusion_count1), annot.gene_id) |> 
+  ungroup() |> 
+  unique()
+
+fwrite(rbp_count_by_gene, "~/splicing_comparison/results/rbpKD_count_by_gene.csv")
+
+# hclustering
+rbp_count_by_gene |> 
+  mutate(incl = glue::glue("{annot.gene_id}_{incl}")) |> 
+  select(incl,RBP,average_count) |> unique() |>  
+  pivot_wider(names_from = "RBP",values_from = 'average_count',values_fill = 0) |> 
+  tibble::column_to_rownames('incl') |> t() |> 
+  dist() |> hclust() |> plot()
+
+rbp_count_by_gene |> 
+  mutate(incl = glue::glue("{annot.gene_id}_{incl}")) |> 
+  select(incl,RBP,average_count) |> unique() |>  
+  pivot_wider(names_from = "RBP",values_from = 'average_count',values_fill = 0) |> 
+  tibble::column_to_rownames('incl') |> 
+  dist() |> hclust() |> plot()
+
+rbp_count_by_gene |> 
+  filter(annot.gene_id == "TMEM234") |> 
+  slice_max(average_count,n = 60) |>
+  mutate(RBP = fct_reorder(RBP,average_count)) |> 
+  ggplot(aes(x = RBP, y = average_count)) + 
+  geom_col() + 
+  coord_flip() +
+  ggtitle('ENCODE TMEM234 cryptic expression')
+
+sum_psi_encode |> 
+  # mutate(tdp_studies = (grepl("TDP", study_title, ignore.case = TRUE)) | 
+  #          (grepl("TARDBP", sample_title, ignore.case = TRUE)) |
+  #          (grepl("TARDBP", study_title, ignore.case = TRUE)) |
+  #          (grepl("TDP", sample_title, ignore.case = TRUE))) |>
   ggplot(aes(x = sum_psi,
              fill = tdp_studies)) + 
   geom_density(alpha = 0.3) + 
   scale_x_continuous(trans = scales::pseudo_log_trans()) +
+  labs(
+    title = "Compilation: ENCODE"
+  ) +
   theme_minimal()
 
 # comparing sum_z with sum_psi in non_tdp studies
@@ -116,6 +172,7 @@ psi_z = sum_psi |>
 psi_z|>   
   ggplot(aes(x = sum_psi, y = sum_z)) + 
   geom_point() + 
+  ggrepel::geom_text_repel(aes(label = study_title), max.overlaps = 3, size = 3) +
   theme_minimal()
 
 # clustering psi
