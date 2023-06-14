@@ -5,7 +5,7 @@ library(data.table)
 library(ggrepel)
 
 # import files
-human_rbp = data.table::fread("/Users/Ewann/splicing_comparison/data/rbp_deseq/human_rbps.csv",header=TRUE)
+human_rbp = data.table::fread("/Users/Ewann/splicing_comparison/data/human_rbps.csv",header=TRUE)
 
 
 

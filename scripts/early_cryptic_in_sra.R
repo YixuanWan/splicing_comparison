@@ -39,7 +39,6 @@ snapcount_metalist = fread("~/splicing_comparison/data/cryptic_queries/snapcount
 ints = GenomicFeatures::intronsByTranscript(TxDb.Hsapiens.UCSC.hg38.knownGene::TxDb.Hsapiens.UCSC.hg38.knownGene) |> makeGRangesFromDataFrame() |> unique() 
 gr_metalist = snapcount_metalist |> 
   filter(type %in% c("novel_donor", 'novel_acceptor')) |> 
-  filter(gene_id != "KCNQ2")  |>   
   separate(snapcount_input, c("seqnames", "start", "end")) |> 
   makeGRangesFromDataFrame(keep.extra.columns = TRUE)
 
@@ -50,7 +49,9 @@ two_junc = subsetByOverlaps(ints, gr_metalist, type = "any") |>
          incl = glue::glue("{annot.seqnames}:{annot.start}-{annot.end}")) |> 
   filter(incl != excl) |> 
   dplyr::select(excl, strand, incl, annot.strand, annot.gene_id)
-  
+
+saveRDS(two_junc, "~/splicing_comparison/data/cryptic_queries/two_junc.rds")
+
 # excl = two_junc |> dplyr::select(excl, strand) |> separate(excl, c("seqname", "start", "end"))
 # incl = two_junc |> dplyr::select(incl, annot.strand) |> separate(incl, c("seqname", "start", "end"))
 # 
@@ -58,18 +59,20 @@ two_junc = subsetByOverlaps(ints, gr_metalist, type = "any") |>
 # rtracklayer::export(excl, "/Users/Ewann/splicing_comparison/data/cryptic_queries/cryptic_junction_exclusions.bed")
 
 
+# ----------------------------------querying function-----------------------------------------------------------
 tmp = list(data.table(matrix()))
 for (val in rownames(two_junc)){
   id = as.numeric(val)
   tmp[[id]] = combine_two_junctions(inc1 = two_junc[id]$incl,
                                     excl = two_junc[id]$excl,
                                     strand_code = two_junc[id]$annot.strand,
-                                    data_source = 'encode1159')} 
+                                    data_source = 'gtex')} 
 
 is_null = purrr::map(tmp, function(df){is.null(dim(df))}) 
-encode_metatable = tmp[which(is_null == FALSE)] |> rbindlist() |> filter(!is.na(psi)) |> unique()
+gtex_metatable = tmp[which(is_null == FALSE)] |> rbindlist() |> filter(!is.na(psi)) |> unique()
+# --------------------------------------------------------------------------------------------------------------
 
-encode_psi = encode_metatable |> 
+gtex_psi = gtex_metatable |> 
   # filter(inclusion_count1 > 2) |>
   # filter(junction_coverage > 1e+6) |>
   # filter(psi > 0.05) |>
@@ -77,11 +80,13 @@ encode_psi = encode_metatable |>
   filter(junc %in% two_junc$excl) |> 
   filter(!(junc %in% two_junc[incl == excl]$excl)) |>
   right_join((two_junc |> dplyr::select(excl, annot.gene_id, incl)), by = c("junc" = "excl")) |> 
-  filter(annot.gene_id != "ZNF420") |> 
   unique()
 
 saveRDS(encode_psi,"~/splicing_comparison/data/cryptic_queries/encode_psi.rds")
+saveRDS(gtex_psi, "~/splicing_comparison/data/cryptic_queries/gtex_psi.rds")
 sra_annotable = readRDS("~/splicing_comparison/data/cryptic_queries/srav3h_psi_annotable.rds")
+encode_psi = readRDS("~/splicing_comparison/data/cryptic_queries/encode_psi.rds")
+gtex_psi = readRDS("~/splicing_comparison/data/cryptic_queries/gtex_psi.rds")
 
 # calculating sum_psi for tdp and non_tdp studies
 sum_psi_encode = encode_psi |> 
@@ -99,7 +104,7 @@ encode_psi |>
   theme_minimal() +
   theme(
     axis.text.x = element_blank()
-    ) + 
+  ) + 
   ggrepel::geom_text_repel(aes(label = annot.gene_id), max.overlaps = 5, size = 3) +
   labs(
     title = "LIN28B",
@@ -155,8 +160,67 @@ sum_psi_encode |>
   ) +
   theme_minimal()
 
+# compare KALRN expression in control
+encode_psi |>
+  filter(annot.gene_id == "KALRN") |> 
+  filter(Experiment.target == "" | Experiment.target == "Non-specific target control-human") |> 
+  select(Experiment.accession, Biosample.term.name, Experiment.target, inclusion_count1) |> 
+  unique() |> 
+  mutate(Experiment.accession = fct_reorder(Experiment.accession,inclusion_count1, .desc = TRUE)) |> 
+  ggplot(aes(x = Experiment.accession, y = inclusion_count1, fill = Biosample.term.name)) + 
+  geom_col() +
+  theme(
+    axis.text.x = element_blank()
+  ) +
+  labs(
+    fill = "Cell type",
+    x = "Experiment",
+    y = "Count",
+    title = "ENCODE KALRN Control"
+  )
+
+# KALRN control vs RBP-KD
+kalrn = encode_psi |> 
+  filter(annot.gene_id == "KALRN") |> 
+  select(Experiment.accession, Biosample.term.name, Experiment.target, inclusion_count1) |> 
+  mutate(condition = ifelse((Experiment.target %in% c("Non-specific target control-human", "")), "control", gsub("-human", "", Experiment.target))) |> 
+  # mutate(Experiment.accession = fct_reorder(Experiment.accession,inclusion_count1, .desc = TRUE)) |> 
+  group_by(Biosample.term.name, condition) |>
+  summarise(average_count = mean(inclusion_count1))  
+
+kalrn |> 
+  mutate(control = (condition == "control")) |> 
+  mutate(condition = fct_reorder(condition, average_count)) |> 
+  ggplot(aes(x = condition, y = average_count, fill = control)) + 
+  geom_col() +
+  labs(
+    fill = "Control",
+    x = "Condition",
+    y = "Count",
+    title = "ENCODE KALRN") +
+  theme(
+    axis.text.x = element_blank())
+
+saveRDS(kalrn, "~/splicing_comparison/data/cryptic_queries/kalrn.rds")
+kalrn = readRDS("~/splicing_comparison/data/cryptic_queries/kalrn.rds")
+
+# query for new junctions found in TDP(longer acceptor) and SNRP70KD
+new_snrnp70 = combine_two_junctions(inc1 = "chr3:124700034-124700848",
+                                   excl = "chr3:124700034-124702037",
+                                   strand_code = "+",
+                                   data_source = 'encode1159') 
+
+count_query("chr3:124700034-124702037", strand_code = "+", data_source = 'encode1159') |> 
+  distinct(chromosome, start, end)
+
+new_snrnp70 |> 
+  filter(!is.na(inclusion_count1)) 
+  select(Experiment.accession, Biosample.term.name, Experiment.target, inclusion_count1) |> 
+  mutate(condition = ifelse((Experiment.target %in% c("Non-specific target control-human", "")), "control", gsub("-human", "", Experiment.target))) 
+
+  
 # comparing sum_z with sum_psi in non_tdp studies
-  # pull experiment names of non-TDP studies with high sum_z
+# pull experiment names of non-TDP studies with high sum_z
 high_z = sample_sum |> 
   mutate(tdp_studies = (grepl("TDP", study_title, ignore.case = TRUE)) | 
            (grepl("TARDBP", sample_title, ignore.case = TRUE)) |
@@ -208,7 +272,7 @@ psi_umap$layout |>
 # scale_color_gradient(low = "turquoise", high = "salmon")
 
 
-  
+
 # ========================================================================================
 # query for specific junctions
 tmp = list(data.table(matrix(ncol = 8)))
@@ -301,7 +365,7 @@ std_umap$layout |>
   geom_point() +
   theme_minimal() +
   theme(legend.position = "none")
-  # scale_color_gradient(low = "turquoise", high = "salmon")
+# scale_color_gradient(low = "turquoise", high = "salmon")
 
 # kmeans clustering - decide the number of clusters
 
@@ -369,9 +433,9 @@ dbscan_std_plot |>
   ggplot(aes(x = PC1, y = PC2)) +
   geom_point(aes(colour = tdp_studies)) +
   labs(
-       x = "PC1",
-       y = 'PC2',
-       colour = "TDP studies?") +
+    x = "PC1",
+    y = 'PC2',
+    colour = "TDP studies?") +
   scale_x_continuous(trans = scales::pseudo_log_trans(sigma = 0.01, base = 2)) +
   scale_y_continuous(trans = scales::pseudo_log_trans(sigma = 0.1, base = 2)) +
   scale_color_manual(values = c("grey80", "orange")) +
@@ -466,7 +530,7 @@ snapcount_metalist |>
 cryptic_map = query_metatable |> 
   filter(coverage > 2) |> 
   filter((grepl("TDP", study_title, ignore.case = TRUE)) | (grepl("TDP", sample_title, ignore.case = TRUE)) | (grepl("TARDBP", sample_title, ignore.case = TRUE))) 
-  group_by(study_title, coords, gene) |> 
+group_by(study_title, coords, gene) |> 
   summarise(mean_coverage = mean(coverage))|> 
   pivot_wider(id_cols = study_title, names_from = c(gene, coords), values_from = mean_coverage) |> 
   column_to_rownames(var = "study_title") |>
@@ -478,5 +542,3 @@ pheatmap(cryptic_map, cluster_rows = TRUE, cluster_cols = FALSE, show_rownames =
          fontsize = 8, treeheight_row = 60, colorRampPalette(c("azure", "orange"))(10))
 
 fwrite(snapcount_metalist, "/Users/Ewann/splicing_comparison/data/cryptic_queries/selective_cryptics_sra.csv")
-
-
