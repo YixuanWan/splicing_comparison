@@ -33,5 +33,25 @@ for (r in colnames(rbp_tpm)){
 }
 dev.off()
 
- 
+# single RBP expression examination
+RBP = "SNRNP70"
+ensembl_id = "ENSG00000104852"
+single_rbp = tpm_nygc |> 
+  mutate(gene = gsub("\\..*", "", gene)) |> 
+  filter(gene == ensembl_id)|>
+  mutate(gene = RBP) |> 
+  tibble::column_to_rownames(var = "gene") |> 
+  t() |> 
+  as.data.table() |> 
+  cbind(rbp_tpm) 
+
+single_rbp |> 
+  ggplot(aes(x = TARDBP, y = single_rbp[[RBP]])) + 
+  geom_point() +
+  geom_smooth(method = "lm") + 
+  ggpubr::stat_cor() +
+  theme_minimal() +
+  labs(
+    title = "NYGC TPM",
+    y = RBP)
 

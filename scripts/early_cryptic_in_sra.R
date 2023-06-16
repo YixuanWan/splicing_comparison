@@ -35,7 +35,7 @@ snapcount_metalist = rbind(early_cryptics_snapcount, nygc_snapcount, inKD_snapco
 fwrite(snapcount_metalist, "~/splicing_comparison/data/snapcount_metalist.csv")
 snapcount_metalist = fread("~/splicing_comparison/data/cryptic_queries/snapcount_metalist.csv")
 
-# calculate PSIs
+# generate table for querying functions
 ints = GenomicFeatures::intronsByTranscript(TxDb.Hsapiens.UCSC.hg38.knownGene::TxDb.Hsapiens.UCSC.hg38.knownGene) |> makeGRangesFromDataFrame() |> unique() 
 gr_metalist = snapcount_metalist |> 
   filter(type %in% c("novel_donor", 'novel_acceptor')) |> 
@@ -50,13 +50,14 @@ two_junc = subsetByOverlaps(ints, gr_metalist, type = "any") |>
   filter(incl != excl) |> 
   dplyr::select(excl, strand, incl, annot.strand, annot.gene_id)
 
-saveRDS(two_junc, "~/splicing_comparison/data/cryptic_queries/two_junc.rds")
+saveRDS(two_junc, "data/cryptic_queries/two_junc.rds")
+two_junc = readRDS("data/cryptic_queries/two_junc.rds")
 
-# excl = two_junc |> dplyr::select(excl, strand) |> separate(excl, c("seqname", "start", "end"))
-# incl = two_junc |> dplyr::select(incl, annot.strand) |> separate(incl, c("seqname", "start", "end"))
-# 
-# rtracklayer::export(incl, "/Users/Ewann/splicing_comparison/data/cryptic_queries/cryptic_junction_inclusions.bed")
-# rtracklayer::export(excl, "/Users/Ewann/splicing_comparison/data/cryptic_queries/cryptic_junction_exclusions.bed")
+excl = two_junc |> dplyr::select(excl, strand) |> separate(excl, c("seqname", "start", "end"))
+incl = two_junc |> dplyr::select(incl, annot.strand) |> separate(incl, c("seqname", "start", "end"))
+
+rtracklayer::export(incl, "/Users/Ewann/splicing_comparison/data/cryptic_queries/cryptic_junction_inclusions.bed")
+rtracklayer::export(excl, "/Users/Ewann/splicing_comparison/data/cryptic_queries/cryptic_junction_exclusions.bed")
 
 
 # ----------------------------------querying function-----------------------------------------------------------
@@ -70,17 +71,19 @@ for (val in rownames(two_junc)){
 
 is_null = purrr::map(tmp, function(df){is.null(dim(df))}) 
 gtex_metatable = tmp[which(is_null == FALSE)] |> rbindlist() |> filter(!is.na(psi)) |> unique()
-# --------------------------------------------------------------------------------------------------------------
+
 
 gtex_psi = gtex_metatable |> 
   # filter(inclusion_count1 > 2) |>
   # filter(junction_coverage > 1e+6) |>
   # filter(psi > 0.05) |>
-  mutate(junc = glue::glue("{chromosome}:{start}-{end}")) |> 
-  filter(junc %in% two_junc$excl) |> 
-  filter(!(junc %in% two_junc[incl == excl]$excl)) |>
-  right_join((two_junc |> dplyr::select(excl, annot.gene_id, incl)), by = c("junc" = "excl")) |> 
+  filter(!is.na(inclusion_count1)) |> 
+  mutate(excl = glue::glue("{chromosome}:{start}-{end}")) |> 
+  filter(excl %in% two_junc$excl) |> 
+  filter(!(excl %in% two_junc[incl == excl]$excl)) |>
+  right_join((two_junc |> dplyr::select(excl, annot.gene_id))) |> 
   unique()
+# --------------------------------------------------------------------------------------------------------------
 
 saveRDS(encode_psi,"~/splicing_comparison/data/cryptic_queries/encode_psi.rds")
 saveRDS(gtex_psi, "~/splicing_comparison/data/cryptic_queries/gtex_psi.rds")
@@ -88,6 +91,95 @@ sra_annotable = readRDS("~/splicing_comparison/data/cryptic_queries/srav3h_psi_a
 encode_psi = readRDS("~/splicing_comparison/data/cryptic_queries/encode_psi.rds")
 gtex_psi = readRDS("~/splicing_comparison/data/cryptic_queries/gtex_psi.rds")
 
+# average count by KD condition
+rbp_count_by_gene = encode_psi |> 
+  mutate(condition = ifelse((Experiment.target %in% c("Non-specific target control-human", "")), "Control", gsub("-human", "", Experiment.target))) |> 
+  group_by(condition, incl_1) |> 
+  summarise(average_count = mean(inclusion_count1), annot.gene_id) |> 
+  ungroup() |> 
+  unique()
+
+fwrite(rbp_count_by_gene, "~/splicing_comparison/results/rbpKD_count_by_gene.csv")
+
+# hclustering - RBP
+rbp_count_by_gene |> 
+  mutate(incl_1 = glue::glue("{annot.gene_id}_{incl_1}")) |> 
+  select(incl_1,condition,average_count) |> unique() |>  
+  pivot_wider(names_from = "condition",values_from = 'average_count',values_fill = 0) |> 
+  tibble::column_to_rownames('incl_1') |> t() |> 
+  dist() |> hclust() |> plot()
+
+# hclustering - cryptic junction
+rbp_count_by_gene |> 
+  mutate(incl_1 = glue::glue("{annot.gene_id}_{incl_1}")) |> 
+  select(incl_1,condition,average_count) |> unique() |>  
+  pivot_wider(names_from = "condition",values_from = 'average_count',values_fill = 0) |> 
+  tibble::column_to_rownames('incl_1') |> 
+  dist() |> hclust() |> plot()
+
+# plotting expression level by experimental condition - KALRN
+rbp_count_by_gene |> 
+  filter(incl_1 == "chr3:124700034-124700976") |> 
+  slice_max(average_count,n = 50) |>
+  mutate(condition = fct_reorder(condition, average_count)) |> 
+  ggplot(aes(x = condition, y = average_count)) + 
+  geom_col() + 
+  coord_flip() +
+  theme_minimal() +
+  labs(
+    title = 'ENCODE KALRN_chr3:chr3:124700034-124700976',
+    x = "Experiment condition",
+    y = "Average count") 
+
+
+
+# KALRN cryptic junctions in gtex database
+# chr3:124700034-124701092
+# chr3:124700034-124700976
+# chr3:124701599-124702037
+# chr3:124701256-124702037
+
+gtex_psi |> 
+  group_by(incl_1, Body_Site) |> 
+  summarise(average_count = mean(inclusion_count1), annot.gene_id) |> 
+  ungroup() |> 
+  unique() |> 
+  filter(incl_1 == "chr3:124701256-124702037") |> 
+  mutate(Body_Site = fct_reorder(Body_Site, average_count)) |> 
+  ggplot(aes(x = average_count, y = Body_Site)) + 
+  geom_col() +
+  labs(
+    title = "GTEx expression by body site", 
+    subtitle = "KALRN_chr3:124701256-124702037"
+  ) +
+  theme_minimal()
+
+
+# query for new junctions found in TDP(longer acceptor) and SNRP70KD
+new_snrnp70 = combine_two_junctions(inc1 = "chr3:124700034-124700848",
+                                   excl = "chr3:124700034-124702037",
+                                   strand_code = "+",
+                                   data_source = 'encode1159') 
+
+# query for new splicing events of KALRN in ENCODE
+kalrn_junc = count_query(snapcount_coords = "chr3:124700034-124702037", strand_code = "+", data_source = 'encode1159')
+# all junctions found in ENCODE:
+# chr3:124700034-124700976 
+# chr3:124700034-124702037
+# chr3:124701256-124702037
+# chr3:124701599-124702037
+
+kalrn_junc |> 
+  # filter(start == "124700034", end == "124700976") |> 
+  filter(Experiment.accession == "ENCSR635BOO") |> 
+  view()
+
+  
+
+
+
+
+# =====================================================================================================================
 # calculating sum_psi for tdp and non_tdp studies
 sum_psi_encode = encode_psi |> 
   group_by(Experiment.accession) |> 
@@ -111,41 +203,6 @@ encode_psi |>
     subtitle = "Experiment: ENCSR927SLP"
   )
 
-rbp_count_by_gene = encode_psi |> 
-  filter(Experiment.target != "") |> 
-  separate(Experiment.target, c("RBP", "species")) |> 
-  filter(RBP != "Non") |> 
-  group_by(RBP, incl) |> 
-  summarise(average_count = mean(inclusion_count1), annot.gene_id) |> 
-  ungroup() |> 
-  unique()
-
-fwrite(rbp_count_by_gene, "~/splicing_comparison/results/rbpKD_count_by_gene.csv")
-
-# hclustering
-rbp_count_by_gene |> 
-  mutate(incl = glue::glue("{annot.gene_id}_{incl}")) |> 
-  select(incl,RBP,average_count) |> unique() |>  
-  pivot_wider(names_from = "RBP",values_from = 'average_count',values_fill = 0) |> 
-  tibble::column_to_rownames('incl') |> t() |> 
-  dist() |> hclust() |> plot()
-
-rbp_count_by_gene |> 
-  mutate(incl = glue::glue("{annot.gene_id}_{incl}")) |> 
-  select(incl,RBP,average_count) |> unique() |>  
-  pivot_wider(names_from = "RBP",values_from = 'average_count',values_fill = 0) |> 
-  tibble::column_to_rownames('incl') |> 
-  dist() |> hclust() |> plot()
-
-rbp_count_by_gene |> 
-  filter(annot.gene_id == "TMEM234") |> 
-  slice_max(average_count,n = 60) |>
-  mutate(RBP = fct_reorder(RBP,average_count)) |> 
-  ggplot(aes(x = RBP, y = average_count)) + 
-  geom_col() + 
-  coord_flip() +
-  ggtitle('ENCODE TMEM234 cryptic expression')
-
 sum_psi_encode |> 
   # mutate(tdp_studies = (grepl("TDP", study_title, ignore.case = TRUE)) | 
   #          (grepl("TARDBP", sample_title, ignore.case = TRUE)) |
@@ -160,65 +217,6 @@ sum_psi_encode |>
   ) +
   theme_minimal()
 
-# compare KALRN expression in control
-encode_psi |>
-  filter(annot.gene_id == "KALRN") |> 
-  filter(Experiment.target == "" | Experiment.target == "Non-specific target control-human") |> 
-  select(Experiment.accession, Biosample.term.name, Experiment.target, inclusion_count1) |> 
-  unique() |> 
-  mutate(Experiment.accession = fct_reorder(Experiment.accession,inclusion_count1, .desc = TRUE)) |> 
-  ggplot(aes(x = Experiment.accession, y = inclusion_count1, fill = Biosample.term.name)) + 
-  geom_col() +
-  theme(
-    axis.text.x = element_blank()
-  ) +
-  labs(
-    fill = "Cell type",
-    x = "Experiment",
-    y = "Count",
-    title = "ENCODE KALRN Control"
-  )
-
-# KALRN control vs RBP-KD
-kalrn = encode_psi |> 
-  filter(annot.gene_id == "KALRN") |> 
-  select(Experiment.accession, Biosample.term.name, Experiment.target, inclusion_count1) |> 
-  mutate(condition = ifelse((Experiment.target %in% c("Non-specific target control-human", "")), "control", gsub("-human", "", Experiment.target))) |> 
-  # mutate(Experiment.accession = fct_reorder(Experiment.accession,inclusion_count1, .desc = TRUE)) |> 
-  group_by(Biosample.term.name, condition) |>
-  summarise(average_count = mean(inclusion_count1))  
-
-kalrn |> 
-  mutate(control = (condition == "control")) |> 
-  mutate(condition = fct_reorder(condition, average_count)) |> 
-  ggplot(aes(x = condition, y = average_count, fill = control)) + 
-  geom_col() +
-  labs(
-    fill = "Control",
-    x = "Condition",
-    y = "Count",
-    title = "ENCODE KALRN") +
-  theme(
-    axis.text.x = element_blank())
-
-saveRDS(kalrn, "~/splicing_comparison/data/cryptic_queries/kalrn.rds")
-kalrn = readRDS("~/splicing_comparison/data/cryptic_queries/kalrn.rds")
-
-# query for new junctions found in TDP(longer acceptor) and SNRP70KD
-new_snrnp70 = combine_two_junctions(inc1 = "chr3:124700034-124700848",
-                                   excl = "chr3:124700034-124702037",
-                                   strand_code = "+",
-                                   data_source = 'encode1159') 
-
-count_query("chr3:124700034-124702037", strand_code = "+", data_source = 'encode1159') |> 
-  distinct(chromosome, start, end)
-
-new_snrnp70 |> 
-  filter(!is.na(inclusion_count1)) 
-  select(Experiment.accession, Biosample.term.name, Experiment.target, inclusion_count1) |> 
-  mutate(condition = ifelse((Experiment.target %in% c("Non-specific target control-human", "")), "control", gsub("-human", "", Experiment.target))) 
-
-  
 # comparing sum_z with sum_psi in non_tdp studies
 # pull experiment names of non-TDP studies with high sum_z
 high_z = sample_sum |> 
