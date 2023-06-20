@@ -62,8 +62,27 @@ deseq2 = deseq2 |>
   pivot_wider(names_from = "gene_name", values_from = padj, id_cols = deseq2_table_name, names_prefix = "padj_") |> 
   full_join(fc_rbp)
 
+rbp_log2fc = experiments |> 
+  left_join(deseq2) |> 
+  select(comparison, cell.type, experiment, contains("log2fold_change")) |> 
+  pivot_longer(cols = starts_with("log2"), names_to = "rbp", names_prefix = "log2fold_change_", values_to = "log2foldChange") 
+
 rbp_deseq2 = experiments |> 
   left_join(deseq2) |> 
-  select(comparison, experiment, contains(c("log2fold_change", "padj")))
+  select(comparison, experiment, cell.type, contains("padj")) |> 
+  pivot_longer(cols = starts_with("padj"), names_to = "rbp", names_prefix = "padj_", values_to = "padj") |> 
+  right_join(rbp_log2fc)
 
-
+rbp_deseq2 |> 
+  filter(rbp == "KALRN") |> 
+  mutate(comparison = fct_reorder(comparison, log2foldChange)) |> 
+  ggplot(aes(x = comparison, y = log2foldChange, fill = cell.type)) +
+  geom_col() +
+  coord_flip() +
+  theme_minimal() +
+  labs(
+    title = "KALRN",
+    x = "Comparison",
+    y = "log2FoldChange",
+    fill = "Cell type"
+  )
