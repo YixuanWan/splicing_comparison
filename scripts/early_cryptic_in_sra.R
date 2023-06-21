@@ -59,6 +59,7 @@ incl = two_junc |> dplyr::select(incl, annot.strand) |> separate(incl, c("seqnam
 rtracklayer::export(incl, "/Users/Ewann/splicing_comparison/data/cryptic_queries/cryptic_junction_inclusions.bed")
 rtracklayer::export(excl, "/Users/Ewann/splicing_comparison/data/cryptic_queries/cryptic_junction_exclusions.bed")
 
+fwrite(two_junc, "data/cryptic_queries/two_junc.csv")
 
 # ----------------------------------querying function-----------------------------------------------------------
 tmp = list(data.table(matrix()))
