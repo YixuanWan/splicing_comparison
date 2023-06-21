@@ -52,7 +52,7 @@ metatable = nygc_psi |>
 plot(metatable |> select(-disease))
 
 # KALRN MR modelling and model comparison
-lm(ABCF1 ~ TARDBP + neurons + astrocytes + endothelial + disease + tissue_clean, data = metatable) |> summary()
+lm(chr3_124701255_124702038 ~ TARDBP + neurons + astrocytes + disease + tissue_clean, data = metatable) |> summary()
 
 # correlation by disease type
 metatable |> 
@@ -87,9 +87,12 @@ corrplot::corrplot(cormat,
 metatable |> 
   rownames_to_column("sample") |> 
   pivot_longer(cols = c("neurons", "oligodendrocytes", "astrocytes", "microglia", "endothelial"), names_to = "cell_type", values_to = "deconv")  |>
-  left_join(cell.type |> select(sample, tissue_clean), ) |> 
-  ggplot(aes(x = TARDBP, y = SNRNP70)) +
+  left_join(cell.type |> select(sample, tissue_clean)) |> 
+  ggplot(aes(x = TARDBP, y = SNRNP70, colour = disease)) +
   geom_point() +
-  facet_grid(cell_type ~ tissue_clean)
+  geom_smooth(method = 'lm') +
+  scale_x_continuous(trans = scales::pseudo_log_trans(sigma = 0.1, base = 2)) +
+  scale_y_continuous(trans = scales::pseudo_log_trans(sigma = 0.1, base = 2)) +
+  facet_wrap(~tissue_clean, nrow = 2) 
 
 
