@@ -30,7 +30,7 @@ splicingTable |>
   filter(paste_into_igv_junction == "chr3:124701255-124702038") |> 
   left_join(experiments |> select(comparison, experiment)) |> 
   mutate(experiment = ifelse(is.na(experiment), comparison, experiment)) |> 
-  mutate(experiment = fct_reorder(experiment, contrast_PSI)) |> 
+  mutate(experiment = forcats::fct_reorder(experiment, contrast_PSI)) |> 
   ggplot(aes(x = contrast_PSI, y = comparison, fill = is_cryptic)) +
   geom_col() +
   theme_minimal() + 
@@ -73,15 +73,18 @@ rbp_deseq2 = experiments |>
   pivot_longer(cols = starts_with("padj"), names_to = "rbp", names_prefix = "padj_", values_to = "padj") |> 
   right_join(rbp_log2fc)
 
+GENE = "tdp"
 rbp_deseq2 |> 
-  filter(rbp == "KALRN") |> 
-  mutate(comparison = fct_reorder(comparison, log2foldChange)) |> 
+  filter(rbp == GENE) |> 
+  filter(!grepl("cycloheximide", comparison)) |> 
+  filter(!grepl("upf1", comparison)) |> 
+  mutate(comparison = forcats::fct_reorder(comparison, log2foldChange)) |> 
   ggplot(aes(x = comparison, y = log2foldChange, fill = cell.type)) +
   geom_col() +
   coord_flip() +
   theme_minimal() +
   labs(
-    title = "KALRN",
+    title = GENE, 
     x = "Comparison",
     y = "log2FoldChange",
     fill = "Cell type"
