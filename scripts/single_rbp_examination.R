@@ -51,7 +51,7 @@ experiment_names = gsub(suffix,"",filenames)
 estimate_files = purrr::map(filepath,my_clean_reader)
 estimate_files = purrr::map2(estimate_files, experiment_names, ~cbind(.x, deseq2_table_name = .y))
 
-RBP = c("SRSF3", "SNRNP70", "ABCF1", "KALRN")
+RBP = c("SRSF3", "SNRNP70", "ABCF1", "KALRN", "NSUN2", "RBFOX2", "NUFIP2", "NPM1")
 deseq2 = purrr::map(estimate_files, rbp_deseq) |> 
   rbindlist(use.names = FALSE) 
 
@@ -73,7 +73,7 @@ rbp_deseq2 = experiments |>
   pivot_longer(cols = starts_with("padj"), names_to = "rbp", names_prefix = "padj_", values_to = "padj") |> 
   right_join(rbp_log2fc)
 
-GENE = "tdp"
+GENE = "NPM1"
 rbp_deseq2 |> 
   filter(rbp == GENE) |> 
   filter(!grepl("cycloheximide", comparison)) |> 

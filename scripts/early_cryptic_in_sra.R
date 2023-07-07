@@ -68,13 +68,13 @@ for (val in rownames(two_junc)){
   tmp[[id]] = combine_two_junctions(inc1 = two_junc[id]$incl,
                                     excl = two_junc[id]$excl,
                                     strand_code = two_junc[id]$annot.strand,
-                                    data_source = 'gtex')} 
+                                    data_source = 'encode1159')} 
 
 is_null = purrr::map(tmp, function(df){is.null(dim(df))}) 
-gtex_metatable = tmp[which(is_null == FALSE)] |> rbindlist() |> filter(!is.na(psi)) |> unique()
+encode_metatable = tmp[which(is_null == FALSE)] |> rbindlist() |> filter(!is.na(psi)) |> unique()
 
 
-gtex_psi = gtex_metatable |> 
+encode_psi = encode_metatable |> 
   # filter(inclusion_count1 > 2) |>
   # filter(junction_coverage > 1e+6) |>
   # filter(psi > 0.05) |>
@@ -92,6 +92,34 @@ sra_annotable = readRDS("~/splicing_comparison/data/cryptic_queries/srav3h_psi_a
 encode_psi = readRDS("~/splicing_comparison/data/cryptic_queries/encode_psi.rds")
 gtex_psi = readRDS("~/splicing_comparison/data/cryptic_queries/gtex_psi.rds")
 
+# gene count by experiment
+encode_psi |>
+  filter(incl_1 == "chr3:124700034-124700976") |> 
+  filter(!is.na(inclusion_count1)) |> 
+  mutate(control = ifelse((Experiment.target %in% c("Non-specific target control-human", "")), "Yes", "No")) |> 
+  mutate(condition = ifelse((Experiment.target %in% c("Non-specific target control-human", "")), "Control", gsub("-human", "", Experiment.target))) |> 
+  group_by(Experiment.accession) |> 
+  summarise(average_count = mean(inclusion_count1), control, condition) |> 
+  ungroup() |> 
+  unique() |> 
+  mutate(Experiment.accession = forcats::fct_reorder(Experiment.accession, average_count)) |> 
+  slice_max(average_count,n = 25) |>
+  ggplot(aes(x = Experiment.accession, y = average_count, fill = control)) +
+  geom_col() +
+  coord_flip() +
+  geom_text(aes(label = condition), size = 2, nudge_y = -0.6) +
+  geom_hline(yintercept = 12, colour = "turquoise", linetype = "dashed") +
+  geom_hline(yintercept = 2, color = "grey80", linetype = "dashed") +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_blank()
+  ) +
+  labs(
+    title = "ENCODE KALRN_chr3:124700034-124700976",
+    x = "Experiment",
+    y = "Count",
+    fill = "Control") 
+
 # average count by KD condition
 rbp_count_by_gene = encode_psi |> 
   mutate(condition = ifelse((Experiment.target %in% c("Non-specific target control-human", "")), "Control", gsub("-human", "", Experiment.target))) |> 
@@ -101,6 +129,7 @@ rbp_count_by_gene = encode_psi |>
   unique()
 
 fwrite(rbp_count_by_gene, "~/splicing_comparison/results/rbpKD_count_by_gene.csv")
+rbp_count_by_gene = fread("~/splicing_comparison/results/rbpKD_count_by_gene.csv")
 
 # hclustering - RBP
 rbp_count_by_gene |> 
@@ -108,7 +137,7 @@ rbp_count_by_gene |>
   select(incl_1,condition,average_count) |> unique() |>  
   pivot_wider(names_from = "condition",values_from = 'average_count',values_fill = 0) |> 
   tibble::column_to_rownames('incl_1') |> t() |> 
-  dist() |> hclust() |> plot()
+  dist() |> hclust() |> as.dendrogram() |> plot(cex = 0.4, xlim = c(254, 256))
 
 # hclustering - cryptic junction
 rbp_count_by_gene |> 
@@ -116,19 +145,21 @@ rbp_count_by_gene |>
   select(incl_1,condition,average_count) |> unique() |>  
   pivot_wider(names_from = "condition",values_from = 'average_count',values_fill = 0) |> 
   tibble::column_to_rownames('incl_1') |> 
-  dist() |> hclust() |> plot()
+  dist() |> hclust() |> plot(ylim = c(60,100))
 
 # plotting expression level by experimental condition - KALRN
 rbp_count_by_gene |> 
-  filter(incl_1 == "chr3:124700034-124700976") |> 
-  slice_max(average_count,n = 50) |>
-  mutate(condition = fct_reorder(condition, average_count)) |> 
+  filter(incl_1 == "chr3:124701256-124702037") |> 
+  slice_max(average_count,n = 30) |>
+  mutate(condition = forcats::fct_reorder(condition, average_count)) |> 
   ggplot(aes(x = condition, y = average_count)) + 
   geom_col() + 
   coord_flip() +
+  geom_hline(yintercept = 20, color = "turquoise", linetype = "dashed") +
+  geom_hline(yintercept = 3, color = "grey80", linetype = "dashed") +
   theme_minimal() +
   labs(
-    title = 'ENCODE KALRN_chr3:chr3:124700034-124700976',
+    title = 'ENCODE KALRN_chr3:124701256-124702037',
     x = "Experiment condition",
     y = "Average count") 
 
@@ -163,7 +194,7 @@ new_snrnp70 = combine_two_junctions(inc1 = "chr3:124700034-124700848",
                                    data_source = 'encode1159') 
 
 # query for new splicing events of KALRN in ENCODE
-kalrn_junc = count_query(snapcount_coords = "chr3:124700034-124702037", strand_code = "+", data_source = 'encode1159')
+count_query(snapcount_coords = "chr3:124701599-124702037", strand_code = "+", data_source = 'encode1159')
 # all junctions found in ENCODE:
 # chr3:124700034-124700976 
 # chr3:124700034-124702037
