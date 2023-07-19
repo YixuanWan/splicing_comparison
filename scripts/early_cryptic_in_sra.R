@@ -94,7 +94,7 @@ gtex_psi = readRDS("~/splicing_comparison/data/cryptic_queries/gtex_psi.rds")
 
 # gene count by experiment
 encode_psi |>
-  filter(incl_1 == "chr3:124700034-124700976") |> 
+  filter(incl_1 == "chr3:124701599-124702037") |> 
   filter(!is.na(inclusion_count1)) |> 
   mutate(control = ifelse((Experiment.target %in% c("Non-specific target control-human", "")), "Yes", "No")) |> 
   mutate(condition = ifelse((Experiment.target %in% c("Non-specific target control-human", "")), "Control", gsub("-human", "", Experiment.target))) |> 
@@ -103,22 +103,42 @@ encode_psi |>
   ungroup() |> 
   unique() |> 
   mutate(Experiment.accession = forcats::fct_reorder(Experiment.accession, average_count)) |> 
-  slice_max(average_count,n = 25) |>
+  slice_max(average_count,n = 75) |>
   ggplot(aes(x = Experiment.accession, y = average_count, fill = control)) +
   geom_col() +
   coord_flip() +
-  geom_text(aes(label = condition), size = 2, nudge_y = -0.6) +
-  geom_hline(yintercept = 12, colour = "turquoise", linetype = "dashed") +
-  geom_hline(yintercept = 2, color = "grey80", linetype = "dashed") +
+  geom_text(aes(label = condition), size = 2, nudge_y = -1.8) +
+  geom_hline(yintercept = 20, colour = "turquoise", linetype = "dashed") +
+  geom_hline(yintercept = 3, color = "grey80", linetype = "dashed") +
   theme_minimal() +
   theme(
     axis.text.y = element_blank()
   ) +
   labs(
-    title = "ENCODE KALRN_chr3:124700034-124700976",
+    title = "ENCODE KALRN_chr3:124701599-124702037",
     x = "Experiment",
     y = "Count",
     fill = "Control") 
+  
+# SNRNP70
+encode_psi |> 
+  filter(grepl("TARDBP", Experiment.target)) |> 
+  group_by(incl_1) |> 
+  summarise(incl_count = mean(inclusion_count1), annot.gene_id) |> 
+  unique() |> 
+  ungroup() |> 
+  mutate(junc = glue::glue("{annot.gene_id}_{incl_1}")) |> 
+  mutate(junc = forcats::fct_reorder(junc, incl_count)) |>
+  ggplot(aes(x = junc, y = incl_count)) +
+  geom_col() +
+  coord_flip() +
+  theme_minimal() +
+  labs(
+    title = "TARDBP-human",
+    subtitle = "ENCODE KD experiment",
+    x = "Junction",
+    y = "Counts"
+  )
 
 # average count by KD condition
 rbp_count_by_gene = encode_psi |> 

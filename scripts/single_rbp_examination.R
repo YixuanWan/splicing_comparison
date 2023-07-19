@@ -23,25 +23,33 @@ experiments = read.csv("/Users/Ewann/splicing_comparison/samplesheet/tdp_experim
 
 kalrn = c("chr3:124701255-124702038", "chr3:124701598-124702038", "chr3:124700033-124700975", "chr3:124700033-124701093")
 
-splicingTable |> 
+invitro_psi = splicingTable |> 
   filter(paste_into_igv_junction %in% kalrn) |> 
   select(gene_name,paste_into_igv_junction,junc_cat,baseline_PSI,contrast_PSI,comparison,strand, junc_cat) |>  
   mutate(is_cryptic = contrast_PSI > 0.1 & baseline_PSI < 0.05)  |> 
   filter(paste_into_igv_junction == "chr3:124701255-124702038") |> 
-  left_join(experiments |> select(comparison, experiment)) |> 
-  mutate(experiment = ifelse(is.na(experiment), comparison, experiment)) |> 
-  mutate(experiment = forcats::fct_reorder(experiment, contrast_PSI)) |> 
-  ggplot(aes(x = contrast_PSI, y = comparison, fill = is_cryptic)) +
+  group_by(comparison, paste_into_igv_junction) |> 
+  summarise(contrast_PSI = mean(contrast_PSI), baseline_PSI = mean(baseline_PSI), is_cryptic) |> 
+  unique() |> 
+  right_join((experiments |> select(comparison, experiment))) |> 
+  filter(!is.na(paste_into_igv_junction)) |> 
+  separate(comparison, c("ctrl", "kd")) 
+
+invitro_psi  |> 
+  mutate(kd = forcats::fct_reorder(kd, contrast_PSI)) |> 
+  mutate(ctrl = forcats::fct_reorder(ctrl, baseline_PSI)) |>
+  ggplot(aes(x = baseline_PSI, y = ctrl, fill = is_cryptic)) +
   geom_col() +
+  geom_text(aes(label = experiment), size = 3) +
   theme_minimal() + 
+  geom_vline(xintercept = 0.05, linetype = 2, colour = "turquoise") +
   labs(
     title = "KALRN_chr3:124701255-124702038",
     subtitle = "PSI in in vitro KD studies",
-    x = "PSI",
+    x = "baseline PSI",
     y = "Experiment",
-    fill = "Cryptic"
-  ) + 
-  facet_wrap(~junc_cat)
+    fill = "Cryptic?"
+  ) 
 
 # RBP cell-type differences check
 filepath = list.files("/Users/Ewann/splicing_comparison/data/deseq2", full.names = TRUE)
@@ -51,7 +59,7 @@ experiment_names = gsub(suffix,"",filenames)
 estimate_files = purrr::map(filepath,my_clean_reader)
 estimate_files = purrr::map2(estimate_files, experiment_names, ~cbind(.x, deseq2_table_name = .y))
 
-RBP = c("SRSF3", "SNRNP70", "ABCF1", "KALRN", "NSUN2", "RBFOX2", "NUFIP2", "NPM1")
+RBP = c("SRSF3", "SNRNP70", "ABCF1", "KALRN", "NSUN2", "RBFOX2", "NUFIP2", "NPM1", "ELAVL3")
 deseq2 = purrr::map(estimate_files, rbp_deseq) |> 
   rbindlist(use.names = FALSE) 
 
@@ -88,4 +96,24 @@ rbp_deseq2 |>
     x = "Comparison",
     y = "log2FoldChange",
     fill = "Cell type"
+  )
+
+# RBP correlation with number of cryptics
+
+experiments = experiments |> 
+  left_join(deseq2) 
+
+GENE = "SRSF3"
+experiments |> 
+  ggplot(aes(x = .data[[paste0("log2fold_change_", GENE)]], y = n_cryptic_junctions)) +
+  geom_point(aes(colour = cell.type)) +
+  geom_smooth(method = "lm", size = 0.3, colour = "black") +
+  ggpubr::stat_cor(size = 3, position = "jitter") +
+  # geom_vline(xintercept = 0, colour = 'grey', linetype = "dashed") +
+  theme_minimal() +
+  ggrepel::geom_text_repel(aes(label = experiment), size = 2) +
+  labs(
+    x = paste0("log2FC/", GENE),
+    y = "N of cryptic junctions",
+    colour = "Cell Type"
   )

@@ -10,8 +10,7 @@ library(ggcorrplot)
 
 
 # load in dataset
-nygc = arrow::read_parquet("/Users/Ewann/splicing_comparison/data/nygc/selective_cryptic_psi_in_nygc.parquet")
-all_nygc = fread("/Users/Ewann/splicing_comparison/data/nygc/all_nygc_junctions.csv")
+nygc = arrow::read_parquet("/Users/Ewann/splicing_comparison/data/nygc/all_psi_in_nygc.parquet")
 
 
 
