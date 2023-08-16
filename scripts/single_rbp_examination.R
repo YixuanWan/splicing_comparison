@@ -31,25 +31,31 @@ invitro_psi = splicingTable |>
   group_by(comparison, paste_into_igv_junction) |> 
   summarise(contrast_PSI = mean(contrast_PSI), baseline_PSI = mean(baseline_PSI), is_cryptic) |> 
   unique() |> 
-  right_join((experiments |> select(comparison, experiment))) |> 
-  filter(!is.na(paste_into_igv_junction)) |> 
-  separate(comparison, c("ctrl", "kd")) 
+  right_join((experiments |> select(comparison, experiment, cell.type))) |> 
+  filter(!is.na(paste_into_igv_junction)) 
 
 invitro_psi  |> 
-  mutate(kd = forcats::fct_reorder(kd, contrast_PSI)) |> 
-  mutate(ctrl = forcats::fct_reorder(ctrl, baseline_PSI)) |>
-  ggplot(aes(x = baseline_PSI, y = ctrl, fill = is_cryptic)) +
+  separate(comparison, c("ctrl", "kd")) |> 
+  # mutate(kd = forcats::fct_reorder(kd, contrast_PSI)) |> 
+  # mutate(ctrl = forcats::fct_reorder(ctrl, baseline_PSI)) |>
+  mutate(fc_PSI = contrast_PSI/baseline_PSI) |> 
+  mutate(ctrl = forcats::fct_reorder(ctrl, fc_PSI)) |> 
+  ggplot(aes(x = log2(fc_PSI), y = ctrl, fill = cell.type)) +
   geom_col() +
-  geom_text(aes(label = experiment), size = 3) +
+  geom_text(aes(label = experiment), size = 3, nudge_x = -1.5) +
   theme_minimal() + 
-  geom_vline(xintercept = 0.05, linetype = 2, colour = "turquoise") +
+  # geom_vline(xintercept = 0.05, linetype = 2, colour = "turquoise") +
+  theme(axis.text.y = element_blank()) +
   labs(
     title = "KALRN_chr3:124701255-124702038",
     subtitle = "PSI in in vitro KD studies",
-    x = "baseline PSI",
+    x = "log2(ContrastPSI/BaselinePSI)",
     y = "Experiment",
-    fill = "Cryptic?"
+    fill = "Cell Type"
   ) 
+
+cryptic_experiments = invitro_psi |> 
+  pull(comparison)
 
 # RBP cell-type differences check
 filepath = list.files("/Users/Ewann/splicing_comparison/data/deseq2", full.names = TRUE)
@@ -103,17 +109,56 @@ rbp_deseq2 |>
 experiments = experiments |> 
   left_join(deseq2) 
 
-GENE = "SRSF3"
+experiments = experiments |> 
+  mutate(kalrn_cryptic = comparison %in% cryptic_experiments)
+
+GENE = "SNRNP70"
 experiments |> 
-  ggplot(aes(x = .data[[paste0("log2fold_change_", GENE)]], y = n_cryptic_junctions)) +
-  geom_point(aes(colour = cell.type)) +
-  geom_smooth(method = "lm", size = 0.3, colour = "black") +
-  ggpubr::stat_cor(size = 3, position = "jitter") +
+  ggplot(aes(x = .data[[paste0("log2fold_change_", GENE)]], y = n_cryptic_junctions, colour = kalrn_cryptic)) +
+  geom_point() +
+  # ggforce::geom_mark_ellipse(data = (experiments |> filter(kalrn_cryptic == TRUE))) +
+  geom_smooth(data = (experiments |> filter(kalrn_cryptic == TRUE)), method = "lm", size = 0.3) +
+  ggpubr::stat_cor(data = (experiments |> filter(kalrn_cryptic == TRUE)), size = 3, label.x.npc = "middle") +
   # geom_vline(xintercept = 0, colour = 'grey', linetype = "dashed") +
   theme_minimal() +
-  ggrepel::geom_text_repel(aes(label = experiment), size = 2) +
+  # ggrepel::geom_text_repel(data = (experiments |> filter(grepl("CHX", experiment))), aes(label = experiment), size = 2, colour = 'black') +
   labs(
     x = paste0("log2FC/", GENE),
     y = "N of cryptic junctions",
-    colour = "Cell Type"
-  )
+    colour = "KALRN cryptic?"
+  ) +
+  scale_colour_manual(values = c('lightblue', "darkorange"))
+
+# cell-type variation in RBP levels
+GENE = "tdp"
+experiments |> 
+  ggplot(aes(x = kalrn_cryptic, y = .data[[paste0("log2fold_change_", GENE)]], fill = kalrn_cryptic)) +
+  geom_boxplot() +
+  geom_jitter() +
+  geom_hline(yintercept = 0, linetype = 'dashed') +
+  ggpubr::stat_compare_means(size = 3) +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  labs(
+    x = "With KALRN cryptic?",
+    # y = paste0("log2FC/", GENE)
+    y = "log2FC/TARDBP"
+  ) +
+  scale_fill_manual(values = c('lightblue', "orange"))
+
+# correlation with tdp levels
+experiments |> 
+  ggplot(aes(y = .data[[paste0("log2fold_change_", GENE)]], x = log2fold_change_tdp, colour = kalrn_cryptic)) +
+  geom_point() +
+  # ggforce::geom_mark_ellipse(data = (experiments |> filter(kalrn_cryptic == TRUE))) +
+  geom_smooth(data = (experiments |> filter(kalrn_cryptic == TRUE)), method = "lm", size = 0.3) +
+  ggpubr::stat_cor(data = (experiments |> filter(kalrn_cryptic == TRUE)), size = 3) +
+  # geom_vline(xintercept = 0, colour = 'grey', linetype = "dashed") +
+  theme_minimal() +
+  # ggrepel::geom_text_repel(aes(label = experiment), size = 2) +
+  labs(
+    y = paste0("log2FC/", GENE),
+    x = "log2FC/TARDBP",
+    colour = "KALRN cryptic?"
+  ) +
+  scale_colour_manual(values = c('lightblue', "darkorange"))

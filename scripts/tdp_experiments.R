@@ -33,7 +33,7 @@ crypticTable = splicingTable |>
   summarize(n_jun = n_distinct(paste_into_igv_junction)) |> 
   ungroup() |>  
   filter(is_cryptic == TRUE) |>  
-  right_join(metatable, by = c("comparison" = "comparison_majiq")) |> 
+  right_join(metatable) |> 
   mutate(n_cryptic_junctions = n_jun, .keep = "unused") |> 
   select(-is_cryptic) |>  
   arrange(experiment)
@@ -59,3 +59,17 @@ metatable = metatable |>
 
 # write out the table
 write.csv(metadata, "/Users/Ewann/splicing_comparison/samplesheet/tdp_experiments_updated - tdp_experiments_updated.csv", row.names = FALSE)
+
+# plot the number of cryptic events for selective experiments |> 
+metatable |> 
+  filter(comparison %in% c("controlbrowncorticalneuron-tdp43kdbrowncorticalneuron", "nodox-dox0075", "control-tdp43kd1")) |> 
+  ggplot(aes(x = comparison, y = n_cryptic_junctions, fill = comparison)) +
+  geom_col(alpha = 0.5) +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  labs(
+    x = "Experiment",
+    y = "Number of Cryptic Junctions"
+  ) +
+  scale_x_discrete(labels = c("SK-N-DZ", "i3Neuron", "SH-SY5Y")) +
+  scale_fill_manual(values = c("#E76BF3", "salmon", "#619CFF"))

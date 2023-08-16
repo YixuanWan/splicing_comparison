@@ -129,17 +129,18 @@ nygc_cj = nygc |>
   filter(tdp_path == "path") |>
   filter(disease_tissue == TRUE) |> 
   filter(grepl("Cortex", tissue_clean)) |> 
-  pull(paste_into_igv_junction) |> 
-  unique()
+  filter(psi > 0.1) |> 
+  distinct(paste_into_igv_junction) |> 
+  pull(paste_into_igv_junction) 
 
 nygc_srsf3kd = srsf3kd |> 
   dplyr::select(gene_name,paste_into_igv_junction,junc_cat,probability_changing,control_mean_psi,srsf3kd_mean_psi,strand) |>  
   filter(control_mean_psi < 0.05 & srsf3kd_mean_psi > 0.10) |> 
   arrange(-srsf3kd_mean_psi) |> 
   filter(paste_into_igv_junction %in% nygc_cj) |> 
-  filter(junc_cat != "annotated") |> 
-  distinct(paste_into_igv_junction, .keep_all = TRUE) |> 
-  filter(junc_cat != "none")
+  # filter(junc_cat != "annotated") |> 
+  distinct(paste_into_igv_junction, .keep_all = TRUE) 
+  # filter(junc_cat != "none")
 
 counts = fread("~/cluster/first_weeks/splicing_comparisons/tdp_srsf3/sj_tabs_parsed/srsf3kd_counts.aggregated.clean.annotated.bed")
 srsf3_counts = counts |> 
@@ -238,7 +239,7 @@ tdpkd_cj = tdpkd |>
   dplyr::select(gene_name,paste_into_igv_junction,junc_cat,probability_changing,control_mean_psi,tdp43kd_mean_psi,strand) |>  
   filter(control_mean_psi < 0.05 & tdp43kd_mean_psi > 0.10) |> 
   arrange(-tdp43kd_mean_psi) |> 
-  filter(junc_cat != 'annotated') |> 
+  # filter(junc_cat != 'annotated') |> 
   select(gene_name, paste_into_igv_junction, junc_cat) |> 
   mutate(tdpKD = TRUE) |> 
   distinct(paste_into_igv_junction, junc_cat, .keep_all = TRUE)
@@ -247,7 +248,7 @@ srsf3kd_cj = srsf3kd |>
   dplyr::select(gene_name,paste_into_igv_junction,junc_cat,probability_changing,control_mean_psi,srsf3kd_mean_psi,strand) |>  
   filter(control_mean_psi < 0.05 & srsf3kd_mean_psi > 0.10) |> 
   arrange(-srsf3kd_mean_psi) |> 
-  filter(junc_cat != 'annotated') |> 
+  # filter(junc_cat != 'annotated') |> 
   select(gene_name, paste_into_igv_junction, junc_cat) |> 
   mutate(srsf3KD = TRUE) |> 
   distinct(paste_into_igv_junction, junc_cat, .keep_all = TRUE)
@@ -257,7 +258,7 @@ tdpsrsf3kd_cj = tdpsrsf3kd |>
   dplyr::select(gene_name,paste_into_igv_junction,junc_cat,probability_changing,control_mean_psi,tdp43kdsrsf3kd_mean_psi,strand) |>  
   filter(control_mean_psi < 0.05 & tdp43kdsrsf3kd_mean_psi > 0.10) |> 
   arrange(-tdp43kdsrsf3kd_mean_psi) |> 
-  filter(junc_cat != 'annotated') |> 
+  # filter(junc_cat != 'annotated') |> 
   select(gene_name, paste_into_igv_junction, junc_cat) |> 
   mutate(doubleKD = TRUE) |> 
   distinct(paste_into_igv_junction, junc_cat, .keep_all = TRUE)
@@ -267,19 +268,20 @@ nygc_srsf3kd_cj = nygc_srsf3kd |>
   mutate(nygc_srsf3kd = TRUE)
  
 overlap_cj = full_join(tdpkd_cj, srsf3kd_cj, by = c("paste_into_igv_junction", "junc_cat"), relationship = "many-to-many") |> 
-  full_join(tdpsrsf3kd_cj, by = c("paste_into_igv_junction", "junc_cat"), relationship = "many-to-many") |> 
-  full_join(nygc_srsf3kd_cj, by = c("paste_into_igv_junction", "junc_cat"), relationship = "many-to-many") |> 
+  # full_join(tdpsrsf3kd_cj, by = c("paste_into_igv_junction", "junc_cat"), relationship = "many-to-many") |> 
+  mutate(nygc = ifelse(paste_into_igv_junction %in% nygc_cj, TRUE, FALSE)) |> 
+  # full_join(nygc_srsf3kd_cj, by = c("paste_into_igv_junction", "junc_cat"), relationship = "many-to-many") |> 
   mutate(gene_id = ifelse(is.na(gene_name.x), gene_name.y, gene_name.x), .keep = "unused") |> 
   mutate(gene_id = ifelse(is.na(gene_id), gene_name, gene_id), .keep = "unused") |> 
-  filter(junc_cat != 'none') |> 
+  # filter(junc_cat != 'none') |> 
   replace(is.na(overlap_cj), FALSE) 
 
 
 overlap_cj |> 
-  select(tdpKD, srsf3KD, doubleKD, nygc_srsf3kd) |> 
+  select(tdpKD, srsf3KD, nygc) |> 
   eulerr::euler() |> 
   plot(quantities = TRUE, main = "Number of cyptic junctions", 
-       legend = list(labels = c("TDP43KD", "SRSF3KD", "DoubleKD", "NYGC_SRSF3KD")))
+       legend = list(labels = c("TDP43KD", "SRSF3KD", "NYGC_ALS")))
 
 cj_longer = overlap_cj |> 
   pivot_longer(cols = ends_with("KD"),

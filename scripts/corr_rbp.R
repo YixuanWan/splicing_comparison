@@ -127,7 +127,8 @@ corr_full <- function (RBP) {
     ggplot(aes(x = fc, y = n_cryptic_junctions)) +
     geom_smooth(method = 'lm') +
     geom_point(aes(colour = cell_type)) +
-    geom_text_repel(aes(label = experiment), box.padding = 0.2, max.overlaps = Inf, size = 2) +
+    # geom_text_repel(aes(label = experiment), box.padding = 0.2, max.overlaps = Inf, size = 2) +
+    ggpubr::stat_cor(label.x.npc = 'left', label.y.npc = 'top', size = 4) +
     labs(
     x = paste0("log2FoldChange/", RBP),
     y = "N cryptic junctions",
