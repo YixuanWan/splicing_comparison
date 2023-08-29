@@ -1,0 +1,11 @@
+comparison,n_cryptic_junctions,experiment,paper,controls,knockdowns,read.length,cell.type,average.library.size,log2fold_change_tdp,padj,deseq2_table_name,datafolder
+nodox-dox0075,933,SH-SY-5Y curve,unpublished,3,3,100,SH-SY5Y,118948195,-3.941817827,0,dox_075_no_dox.DESEQ2_results,NA
+control-tdp43kd1,586,SK-N-DZ curve,unpublished,3,3,150,SK-N-DZ,147239547,-3.987494128,0,results_table_dz_curves_1,NA
+controlappocherskndz-tdp43kdappocherskndz,379,appocher.sk-n-dz,https://doi.org/10.1093/nar/gkx477,3,3,100,SK-N-DZ,22317199,-1.988566414,6.07E-13,appocher.sk-n-dz.DESEQ2_results,NA
+controlbrowncorticalneuron-tdp43kdbrowncorticalneuron,619,brown.ipscCortical_neuron,https://doi.org/10.1038/s41586-022-04436-3,4,4,75,i3 cortical,119476285,-1.639857798,1.07E-111,brown.ipscCortical_neuron.DESEQ2_results,NA
+controlbrownshsy5y-tdp43kdbrownshsy5y,992,brown.sh-sy-5y,https://doi.org/10.1038/s41586-022-04436-3,3,3,149,SH-SY5Y,137526902,-1.296299535,6.53E-11,brown.sh-sy-5y.DESEQ2_results,NA
+controlbrownskndz-tdp43kdbrownskndz,743,brown.sk-n-dz,https://doi.org/10.1038/s41586-022-04436-3,3,4,149,SK-N-DZ,136053813,-2.588178312,5.83E-128,brown.sk-n-dz.DESEQ2_results,NA
+controlhumphreycorticalneuron-tdp43kdhumphreycorticalneuron,811,humphrey_i3cortical,unpublished,6,6,151,i3 cortical,95981221,-3.275267876,1.95E-110,humphrey_i3cortical|control.DESEQ2_results,NA
+controlklimmotorneuron-tdp43kdklimmotorneuron,72,klim.ipscMotor_neuron,10.1038/s41593-018-0300-4,12,6,75,iPSC MN,49420528,-1.340180502,3.10E-48,klim.ipscMotor_neuron.DESEQ2_results,NA
+controlmelamedshsy5y-tdp43kdmelamedshsy5y,195,melamed.sh-sy-5y,10.1038/s41593-018-0293-z,3,3,50,SH-SY5Y,60037818,-1.931236822,1.13E-77,melamed.sh-sy-5y.DESEQ2_results,NA
+controlseddighicorticalneuron-tdp43kdseddighicorticalneuron,680,seddighi.ipscCortical_neuron,https://doi.org/10.1101/2023.01.23.525149,12,6,145,i3 cortical,206574027,-2.03873657,0,seddighi.ipscCortical_neuron.DESEQ2_results,NA

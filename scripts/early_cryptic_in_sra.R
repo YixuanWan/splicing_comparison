@@ -185,7 +185,7 @@ rbp_count_by_gene |>
 
 
 
-# KALRN cryptic junctions in gtex database
+# KALRN junctions in gtex database
 # chr3:124700034-124701092
 # chr3:124700034-124700976
 # chr3:124701599-124702037

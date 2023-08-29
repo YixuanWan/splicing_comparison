@@ -1,0 +1,5 @@
+comparison,n_cryptic_junctions,experiment,paper,controls,knockdowns,read.length,cell.type,average.library.size,log2fold_change_tdp,padj,deseq2_table_name,datafolder
+controlcontrol-controltdp43kd,825,CHX SH-SY-5Y,unpublished,4,4,100,SH-SY5Y,111065369,-3.5855481,7.62E-242,Control_TDP43KD|Control_Control.DESEQ2_results,NA
+cycloheximidecontrol-cycloheximidetdp43kd,1219,CHX SH-SY-5Y,unpublished,4,4,100,SH-SY5Y,110717361,-3.154508846,0,Cycloheximide_TDP43KD_Cycloheximide_Control.DESEQ2_results,NA
+ctrlctrl-tdp43ctrl,543,UPF1 i3 Cortical,unpublished,4,4,150,i3 cortical,151330270,-1.944207924,0,results_deseq_ctrlctrl_ctrlTDP43,NA
+ctrlupf1-tdp43upf1,605,UPF1 i3 Cortical,unpublished,4,4,150,i3 cortical,134319557,-1.748571644,0,results_deseq_UPF1ctrl_UPF1TDP43,NA

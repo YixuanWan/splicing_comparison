@@ -1,6 +1,6 @@
 library(dplyr)
 library(tidyr)
-library(as.data.table)
+library(data.table)
 library(ggplot2)
 
 rbp_deseq <- function(file){
@@ -19,40 +19,41 @@ rbp_deseq <- function(file){
 
 # examine KALRN PSI in in vitro experiments
 splicingTable = read.csv("/Users/Ewann/splicing_comparison/data/majiq/splicing_full_delta_psi_tables.csv")
-experiments = read.csv("/Users/Ewann/splicing_comparison/samplesheet/tdp_experiments_updated-tdp_experiments_updated.csv")
+experiments = read.csv("/Users/Ewann/splicing_comparison/samplesheet/tdp_experiments_updated-tdp_experiments_short.csv")
 
 kalrn = c("chr3:124701255-124702038", "chr3:124701598-124702038", "chr3:124700033-124700975", "chr3:124700033-124701093")
 
 invitro_psi = splicingTable |> 
-  filter(paste_into_igv_junction %in% kalrn) |> 
-  select(gene_name,paste_into_igv_junction,junc_cat,baseline_PSI,contrast_PSI,comparison,strand, junc_cat) |>  
-  mutate(is_cryptic = contrast_PSI > 0.1 & baseline_PSI < 0.05)  |> 
-  filter(paste_into_igv_junction == "chr3:124701255-124702038") |> 
-  group_by(comparison, paste_into_igv_junction) |> 
+  # filter(paste_into_igv_junction %in% kalrn) |>
+  # select(gene_name,paste_into_igv_junction,junc_cat,baseline_PSI,contrast_PSI,comparison,strand, junc_cat) |>  
+  mutate(is_cryptic = contrast_PSI > 0.1 & baseline_PSI < 0.05)  |>
+  # filter(grepl("chr19:49101471-491021", paste_into_igv_junction)) |> 
+  filter(paste_into_igv_junction == "chr19:49101471-49102114") |>
+  group_by(comparison, paste_into_igv_junction) |> View()
   summarise(contrast_PSI = mean(contrast_PSI), baseline_PSI = mean(baseline_PSI), is_cryptic) |> 
   unique() |> 
   right_join((experiments |> select(comparison, experiment, cell.type))) |> 
   filter(!is.na(paste_into_igv_junction)) 
 
 invitro_psi  |> 
-  separate(comparison, c("ctrl", "kd")) |> 
+  # filter(cell.type == "SH-SY5Y") |> 
+  # separate(comparison, c("ctrl", "kd")) |>
+  # mutate(kd = gsub("tdp43kd","", kd)) |> 
   # mutate(kd = forcats::fct_reorder(kd, contrast_PSI)) |> 
-  # mutate(ctrl = forcats::fct_reorder(ctrl, baseline_PSI)) |>
-  mutate(fc_PSI = contrast_PSI/baseline_PSI) |> 
-  mutate(ctrl = forcats::fct_reorder(ctrl, fc_PSI)) |> 
-  ggplot(aes(x = log2(fc_PSI), y = ctrl, fill = cell.type)) +
-  geom_col() +
-  geom_text(aes(label = experiment), size = 3, nudge_x = -1.5) +
+  pivot_longer(cols = contains("PSI"), names_to = "condition", values_to = "psi") |>
+  ggplot(aes(x = psi, y = comparison)) +
+  geom_col(aes(fill = condition), position = 'dodge') +
   theme_minimal() + 
-  # geom_vline(xintercept = 0.05, linetype = 2, colour = "turquoise") +
-  theme(axis.text.y = element_blank()) +
+  # geom_vline(xintercept = 0.05, linetype = 2, colour = "#00BFC4") +
+  # geom_vline(xintercept = 0.10, linetype = 2, colour = "#F8766D") +
   labs(
-    title = "KALRN_chr3:124701255-124702038",
-    subtitle = "PSI in in vitro KD studies",
-    x = "log2(ContrastPSI/BaselinePSI)",
+    title = "SNRNP70 AS",
+    # subtitle = "CHX SH-SY5Y",
+    x = "PSI",
     y = "Experiment",
-    fill = "Cell Type"
-  ) 
+    fill = "Condition"
+  ) +
+  scale_fill_manual(values = c("#00BFC4", "#F8766D"), labels = c("Control", "TDP-43 KD"))
 
 cryptic_experiments = invitro_psi |> 
   pull(comparison)
@@ -65,7 +66,7 @@ experiment_names = gsub(suffix,"",filenames)
 estimate_files = purrr::map(filepath,my_clean_reader)
 estimate_files = purrr::map2(estimate_files, experiment_names, ~cbind(.x, deseq2_table_name = .y))
 
-RBP = c("SRSF3", "SNRNP70", "ABCF1", "KALRN", "NSUN2", "RBFOX2", "NUFIP2", "NPM1", "ELAVL3")
+RBP = c("SNRNP70", "KALRN", "ELAVL3", "SRSF3")
 deseq2 = purrr::map(estimate_files, rbp_deseq) |> 
   rbindlist(use.names = FALSE) 
 
@@ -87,7 +88,7 @@ rbp_deseq2 = experiments |>
   pivot_longer(cols = starts_with("padj"), names_to = "rbp", names_prefix = "padj_", values_to = "padj") |> 
   right_join(rbp_log2fc)
 
-GENE = "NPM1"
+GENE = "SNRNP70"
 rbp_deseq2 |> 
   filter(rbp == GENE) |> 
   filter(!grepl("cycloheximide", comparison)) |> 
@@ -104,6 +105,7 @@ rbp_deseq2 |>
     fill = "Cell type"
   )
 
+
 # RBP correlation with number of cryptics
 
 experiments = experiments |> 
@@ -112,53 +114,111 @@ experiments = experiments |>
 experiments = experiments |> 
   mutate(kalrn_cryptic = comparison %in% cryptic_experiments)
 
-GENE = "SNRNP70"
+GENE = "SRSF3"
 experiments |> 
-  ggplot(aes(x = .data[[paste0("log2fold_change_", GENE)]], y = n_cryptic_junctions, colour = kalrn_cryptic)) +
-  geom_point() +
+  ggplot(aes(x = .data[[paste0("log2fold_change_", GENE)]], y = n_cryptic_junctions)) +
+  geom_smooth(method = 'lm', colour = "black", linewidth = 0.5) +
+  geom_point(aes(colour = cell.type)) +
   # ggforce::geom_mark_ellipse(data = (experiments |> filter(kalrn_cryptic == TRUE))) +
-  geom_smooth(data = (experiments |> filter(kalrn_cryptic == TRUE)), method = "lm", size = 0.3) +
-  ggpubr::stat_cor(data = (experiments |> filter(kalrn_cryptic == TRUE)), size = 3, label.x.npc = "middle") +
+  ggpubr::stat_cor(size = 3, label.x.npc = "left", label.y = 1050) +
   # geom_vline(xintercept = 0, colour = 'grey', linetype = "dashed") +
   theme_minimal() +
-  # ggrepel::geom_text_repel(data = (experiments |> filter(grepl("CHX", experiment))), aes(label = experiment), size = 2, colour = 'black') +
-  labs(
-    x = paste0("log2FC/", GENE),
-    y = "N of cryptic junctions",
-    colour = "KALRN cryptic?"
-  ) +
-  scale_colour_manual(values = c('lightblue', "darkorange"))
-
-# cell-type variation in RBP levels
-GENE = "tdp"
-experiments |> 
-  ggplot(aes(x = kalrn_cryptic, y = .data[[paste0("log2fold_change_", GENE)]], fill = kalrn_cryptic)) +
-  geom_boxplot() +
-  geom_jitter() +
-  geom_hline(yintercept = 0, linetype = 'dashed') +
-  ggpubr::stat_compare_means(size = 3) +
-  theme_minimal() +
+  # ggrepel::geom_text_repel(aes(label = experiment), size = 3, colour = 'black') +
   theme(legend.position = "none") +
   labs(
-    x = "With KALRN cryptic?",
-    # y = paste0("log2FC/", GENE)
-    y = "log2FC/TARDBP"
+    x = paste0("log2FC/", GENE),
+    y = "N of cryptic junctions"
   ) +
-  scale_fill_manual(values = c('lightblue', "orange"))
+  ylim(0, 1200)
+
+# cell-type variation in RBP levels across experiments
+experiments |> 
+  ggplot(aes(x = cell.type, y = .data[[paste0("log2fold_change_", GENE)]])) +
+  geom_boxplot(colour = "lightgrey") +
+  geom_jitter(aes(colour = cell.type)) +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  ggpubr::stat_compare_means(method = "wilcox.test",
+                             comparison = list(c(1,2), c(2,3), c(3,4), c(1,3),  c(2,4), c(1,4)),
+                             label.y = c(0.4, 0.4, 0.4, 0.7, 0.5, 0.6), 
+                             label = "p.format",
+                             size = 3) +
+  labs(
+    x ="Cell Type",
+    y = paste0("log2FC/", GENE))
+
+# cell-type variation in RBP levels in experiments
+experiments |> 
+  mutate(comparison = glue::glue("{experiment}_{comparison}")) |> 
+  mutate(log2fold_change_TARDBP = log2fold_change_tdp, .keep = 'unused') |> 
+  pivot_longer(cols = contains("log2fold_change"), names_to = "RBP", names_prefix = "log2fold_change_", values_to = "log2FC") |>  
+  select(-contains("padj")) |> 
+  filter(RBP != "KALRN") |> 
+  ggplot(aes(x = comparison, y = log2FC, fill = experiment)) +
+  # geom_col() +
+  # coord_flip() +
+  # geom_boxplot(colour = 'black') +
+  # geom_jitter() +
+  # geom_hline(yintercept = 0, linetype = 'dashed') +
+  # ggpubr::stat_compare_means(size = 3, label = "p.format") +
+  theme_minimal() +
+  theme(axis.text.x = element_blank(),
+        legend.position = "none") +
+  # labs(
+  #   x = "KALRN SJ1?",
+  #   y = "log2FC"
+  # ) +
+  # scale_colour_manual(values = c('lightblue', "orange")) +
+  scale_fill_manual(values = c("#CC79A7", "#0072B2")) +
+  facet_wrap(~RBP, nrow = 1)
 
 # correlation with tdp levels
+GENE = "SNRNP70"
 experiments |> 
   ggplot(aes(y = .data[[paste0("log2fold_change_", GENE)]], x = log2fold_change_tdp, colour = kalrn_cryptic)) +
+  ggforce::geom_mark_hull(aes(fill = kalrn_cryptic), colour = "white", alpha = 0.1) +
   geom_point() +
-  # ggforce::geom_mark_ellipse(data = (experiments |> filter(kalrn_cryptic == TRUE))) +
-  geom_smooth(data = (experiments |> filter(kalrn_cryptic == TRUE)), method = "lm", size = 0.3) +
-  ggpubr::stat_cor(data = (experiments |> filter(kalrn_cryptic == TRUE)), size = 3) +
+  geom_smooth(method = "lm", se = FALSE) +
+  # geom_smooth(data = (experiments |> filter(kalrn_cryptic == TRUE)), method = "lm", size = 0.3) +
+  ggpubr::stat_cor() +
   # geom_vline(xintercept = 0, colour = 'grey', linetype = "dashed") +
   theme_minimal() +
   # ggrepel::geom_text_repel(aes(label = experiment), size = 2) +
   labs(
     y = paste0("log2FC/", GENE),
     x = "log2FC/TARDBP",
-    colour = "KALRN cryptic?"
+    colour = "KALRN SJ1?",
+    fill = "KALRN SJ1?"
   ) +
-  scale_colour_manual(values = c('lightblue', "darkorange"))
+  scale_colour_manual(values = c('lightblue', "darkorange")) +
+  scale_fill_manual(values = c('lightblue', "darkorange"))
+
+# RBP correlation with KALRN cryptic PSI
+experiments |> 
+  select(-contains("padj")) |> 
+  mutate(log2fold_change_TARDBP = log2fold_change_tdp, .keep = "unused") |> 
+  right_join(invitro_psi) |>
+  mutate(fc_psi = log2(contrast_PSI/baseline_PSI)) |> 
+  pivot_longer(cols = contains("log2"), names_to = "rbp", values_to = "log2fc", names_prefix = "log2fold_change_") |> 
+  ggplot(aes(x = log2fc, y = contrast_PSI)) +
+  geom_point(aes(colour = cell.type), size = 2) +
+  # geom_smooth(method = "lm") +
+  # ggpubr::stat_cor() +
+  # ggrepel::geom_text_repel(aes(label = experiment), size = 3, position = "stack", max.overlaps = 2) +
+  theme_minimal() +
+  facet_wrap(~ rbp, nrow = 1) +
+  labs(
+    x = "log2FC",
+    y = "log2(ContrastPSI/baselinePSI)",
+    colour = "Cell Type"
+  )
+
+
+# KALRN cryptic - RBP association in facs neurons
+splicingTable |> 
+  select(gene_name,paste_into_igv_junction,junc_cat,baseline_PSI,contrast_PSI,comparison,strand, junc_cat) |>  
+  filter(paste_into_igv_junction == "chr3:124701255-124702038") |> 
+  filter(comparison == "controlliufacsneurons-tdp43kdliufacsneurons") |> 
+  group_by(paste_into_igv_junction) |> 
+  summarise(contrast_PSI = mean(contrast_PSI), baseline_PSI = mean(baseline_PSI)) |> 
+  unique() 
